@@ -1,0 +1,145 @@
+// Prisma schema for Postgres latest
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  SELLER
+}
+
+enum ClientStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum ProductStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum InvoiceType {
+  ELECTRONIC // proposed field to distinguish electronic vs. traditional
+  TRADITIONAL
+}
+
+enum InvoiceStatus {
+  DRAFT
+  ISSUED
+  CANCELED
+}
+
+enum StockMovementType {
+  IN
+  OUT
+  ADJUST
+}
+
+model User {
+  id            String        @id @default(cuid())
+  email         String        @unique
+  passwordHash  String
+  name          String
+  role          Role
+  isActive      Boolean       @default(true)
+  lastLoginAt   DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  invoices      Invoice[]     @relation("InvoicesCreated")
+  stockMoves    StockMovement[] @relation("StockMovementsCreated")
+}
+
+model Client {
+  id         String        @id @default(cuid())
+  name       String        // validable: sanitized string
+  taxId      String        @unique // validable: fiscal identifier
+  email      String?
+  phone      String?
+  address    String?
+  status     ClientStatus  @default(ACTIVE)
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  invoices   Invoice[]
+}
+
+model Product {
+  id                String         @id @default(cuid())
+  sku               String         @unique
+  name              String
+  category          String?
+  unitPrice         Decimal        @db.Decimal(12, 2)
+  taxRate           Decimal        @db.Decimal(5, 2) // percentage e.g., 13.00
+  stock             Int            @default(0)
+  lowStockThreshold Int            @default(5)
+  status            ProductStatus  @default(ACTIVE)
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  items             InvoiceItem[]
+  stockMovements    StockMovement[]
+}
+
+model StockMovement {
+  id          String            @id @default(cuid())
+  productId   String
+  product     Product           @relation(fields: [productId], references: [id], onDelete: Cascade)
+  type        StockMovementType
+  quantity    Int
+  reason      String?
+  createdAt   DateTime          @default(now())
+  createdById String?
+  createdBy   User?             @relation("StockMovementsCreated", fields: [createdById], references: [id])
+  invoiceId   String?
+  invoice     Invoice?          @relation(fields: [invoiceId], references: [id])
+}
+
+model Invoice {
+  id          String         @id @default(cuid())
+  number      String         @unique
+  type        InvoiceType
+  status      InvoiceStatus  @default(DRAFT)
+  clientId    String
+  client      Client         @relation(fields: [clientId], references: [id])
+  items       InvoiceItem[]
+  stockMovements StockMovement[]
+  issuedAt    DateTime?
+  canceledAt  DateTime?
+  paymentMethod String?      // proposed minimal field
+  notes       String?
+  subtotal    Decimal        @db.Decimal(12, 2) @default(0)
+  taxTotal    Decimal        @db.Decimal(12, 2) @default(0)
+  total       Decimal        @db.Decimal(12, 2) @default(0)
+  // proposed: stub for electronic billing identifier/stamp for future integration
+  electronicFiscalStamp String?
+  createdById String?
+  createdBy   User?          @relation("InvoicesCreated", fields: [createdById], references: [id])
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@index([clientId])
+  @@index([status, type])
+}
+
+model InvoiceItem {
+  id         String   @id @default(cuid())
+  invoiceId  String
+  invoice    Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  productId  String?
+  product    Product? @relation(fields: [productId], references: [id])
+  description String
+  quantity   Int
+  unitPrice  Decimal  @db.Decimal(12, 2)
+  taxRate    Decimal  @db.Decimal(5, 2)
+  subtotal   Decimal  @db.Decimal(12, 2)
+  taxAmount  Decimal  @db.Decimal(12, 2)
+  total      Decimal  @db.Decimal(12, 2)
+}
+
+
