@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { apiFetch } from '../lib/api';
+import { useAuthStore } from '../stores/authStore';
 
 export const ClientPortal: React.FC = () => {
   const [invoices, setInvoices] = useState<any[]>([]);
+  const { token } = useAuthStore();
 
   const load = async () => {
     const res = await apiFetch<{ data: any[] }>(`/portal/my/invoices`);
@@ -13,9 +15,20 @@ export const ClientPortal: React.FC = () => {
     load();
   }, []);
 
-  const handleDownloadDTE = async (id: string) => {
+  const downloadJson = async (id: string) => {
+    const base = import.meta.env.VITE_API_URL?.replace(/\/$/, '') || '';
+    window.open(`${base}/dte/${id}/json?token=${token ?? ''}`, '_blank');
+  };
+
+  const downloadPdf = async (id: string) => {
+    // Usa acuse si existe; sino genera PDF del servidor
     const res = await apiFetch<{ data: any }>(`/portal/my/invoices/${id}/dte`);
-    if (res?.data?.xmlUrl) window.open(res.data.xmlUrl, '_blank');
+    if (res?.data?.ackUrl) {
+      window.open(res.data.ackUrl, '_blank');
+    } else {
+      const base = import.meta.env.VITE_API_URL?.replace(/\/$/, '') || '';
+      window.open(`${base}/dte/${id}/pdf?token=${token ?? ''}`, '_blank');
+    }
   };
 
   return (
@@ -38,7 +51,10 @@ export const ClientPortal: React.FC = () => {
                 <td className="p-2">{inv.issuedAt ? new Date(inv.issuedAt).toLocaleDateString() : '-'}</td>
                 <td className="p-2">${Number(inv.total).toFixed(2)}</td>
                 <td className="p-2">
-                  <button className="text-blue-600" onClick={() => handleDownloadDTE(inv.id)}>Descargar</button>
+                  <div className="flex space-x-2">
+                    <button className="text-gray-700 underline" onClick={() => downloadJson(inv.id)}>JSON</button>
+                    <button className="text-blue-600 underline" onClick={() => downloadPdf(inv.id)}>PDF</button>
+                  </div>
                 </td>
               </tr>
             ))}

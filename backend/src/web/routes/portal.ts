@@ -20,7 +20,7 @@ portalRouter.get("/my/invoices/:id/dte", async (req, res) => {
   const inv = await prisma.invoice.findUnique({ where: { id: req.params.id } });
   if (!inv || inv.clientId !== user.clientId) return res.status(404).json({ message: "Not found" });
   const dte = await prisma.dTE.findUnique({ where: { invoiceId: inv.id } });
-  res.json({ data: dte });
+  res.json({ data: dte ?? { status: "PENDING" } });
 });
 
 

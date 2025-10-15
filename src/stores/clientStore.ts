@@ -9,7 +9,7 @@ interface ClientState {
   loading: boolean;
   error: string | null;
   fetchClients: () => Promise<void>;
-  createClient: (client: Omit<Client, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
+  createClient: (client: Omit<Client, 'id' | 'createdAt' | 'updatedAt'>) => Promise<{ email: string; tempPassword: string } | null>;
   updateClient: (id: string, client: Partial<Client>) => Promise<void>;
   deleteClient: (id: string) => Promise<void>;
   getClientById: (id: string) => Client | undefined;
@@ -59,10 +59,15 @@ export const useClientStore = create<ClientState>((set, get) => ({
   createClient: async (clientData) => {
     set({ loading: true, error: null });
     try {
-      const res = await apiFetch<{ data: any }>(`/clients`, { method: 'POST', body: clientData });
+      const res = await apiFetch<{ data: any; customerUser?: { id: string; email: string; tempPassword: string } }>(`/clients`, { method: 'POST', body: clientData });
       set(state => ({ clients: [...state.clients, mapApiClient(res.data)], loading: false }));
+      if (res.customerUser) {
+        return { email: res.customerUser.email, tempPassword: res.customerUser.tempPassword };
+      }
+      return null;
     } catch (error) {
       set({ error: 'Error al crear cliente', loading: false });
+      return null;
     }
   },
 

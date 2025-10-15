@@ -27,6 +27,13 @@ export const userController = {
     const updated = await userService.update(id, data);
     res.json({ data: updated });
   },
+  async resetPassword(req: Request, res: Response) {
+    const { id } = req.params;
+    const pwd = Math.random().toString(36).slice(-10);
+    const passwordHash = await hashPassword(pwd);
+    await userService.update(id, { passwordHash } as any);
+    res.json({ data: { id, tempPassword: pwd } });
+  },
   async remove(req: Request, res: Response) {
     const { id } = req.params;
     await userService.disable(id);

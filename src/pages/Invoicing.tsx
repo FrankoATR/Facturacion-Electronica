@@ -1,6 +1,6 @@
 // TODO: validar vs PDF - Módulo de Facturación (electrónica y tradicional)
 import React, { useEffect, useState } from 'react';
-import { Plus, Search, FileText, Download, Eye, X } from 'lucide-react';
+import { Plus, Search, FileText, Eye, X } from 'lucide-react';
 import { useInvoiceStore } from '../stores/invoiceStore';
 import { useClientStore } from '../stores/clientStore';
 import { useProductStore } from '../stores/productStore';
@@ -26,7 +26,7 @@ const invoiceSchema = z.object({
 type InvoiceForm = z.infer<typeof invoiceSchema>;
 
 export const Invoicing: React.FC = () => {
-  const { user } = useAuthStore();
+  const { user, token } = useAuthStore();
   const { invoices, currentInvoice, loading, error, fetchInvoices, createInvoice, setCurrentInvoice, addItemToCurrentInvoice, removeItemFromCurrentInvoice, updateItemInCurrentInvoice } = useInvoiceStore();
   const { clients, fetchClients } = useClientStore();
   const { products, fetchProducts } = useProductStore();
@@ -239,16 +239,9 @@ export const Invoicing: React.FC = () => {
           <button
             onClick={() => handleViewInvoice(invoice)}
             className="text-blue-600 hover:text-blue-800"
-            title="Ver detalle"
+            title="Ver/Descargar DTE"
           >
             <Eye size={16} />
-          </button>
-          <button
-            onClick={() => window.print()}
-            className="text-green-600 hover:text-green-800"
-            title="Imprimir"
-          >
-            <Download size={16} />
           </button>
         </div>
       )
@@ -533,6 +526,26 @@ export const Invoicing: React.FC = () => {
                   </tr>
                 </tfoot>
               </table>
+            </div>
+
+            {/* Actions to download DTE JSON/PDF */}
+            <div className="flex justify-end space-x-3">
+              <a
+                href={`${import.meta.env.VITE_API_URL?.replace(/\/$/, '')}/dte/${viewingInvoice.id}/json?token=${token ?? ''}`}
+                target="_blank"
+                rel="noreferrer"
+                className="px-3 py-2 text-sm rounded bg-gray-100 hover:bg-gray-200"
+              >
+                Descargar JSON
+              </a>
+              <a
+                href={`${import.meta.env.VITE_API_URL?.replace(/\/$/, '')}/dte/${viewingInvoice.id}/pdf?token=${token ?? ''}`}
+                target="_blank"
+                rel="noreferrer"
+                className="px-3 py-2 text-sm rounded bg-blue-600 text-white hover:bg-blue-700"
+              >
+                Descargar PDF
+              </a>
             </div>
 
             {/* Notes */}

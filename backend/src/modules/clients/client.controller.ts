@@ -2,6 +2,8 @@ import { Request, Response } from "express";
 import { clientService } from "./client.service";
 import { parsePagination } from "../../common/pagination";
 import { UpsertClientDto } from "./client.dto";
+import { prisma } from "../../config/prisma";
+import { hashPassword } from "../../utils/password";
 
 export const clientController = {
   async list(req: Request, res: Response) {
@@ -13,8 +15,30 @@ export const clientController = {
   async create(req: Request, res: Response) {
     const parsed = UpsertClientDto.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ message: "Invalid" });
-    const created = await clientService.create(parsed.data);
-    res.status(201).json({ data: created });
+    try {
+      const result = await prisma.$transaction(async (tx) => {
+        const created = await tx.client.create({ data: parsed.data as any });
+        const pwd = Math.random().toString(36).slice(-10);
+        const email = (created.email ?? `${created.taxId}@example.com`).toLowerCase();
+        const user = await tx.user.create({
+          data: {
+            email,
+            name: created.name,
+            role: "CUSTOMER",
+            clientId: created.id,
+            passwordHash: await hashPassword(pwd),
+          },
+          select: { id: true, email: true },
+        });
+        return { created, user, pwd };
+      });
+      res.status(201).json({ data: result.created, customerUser: { id: result.user.id, email: result.user.email, tempPassword: result.pwd } });
+    } catch (e: any) {
+      if (e.code === "P2002") {
+        return res.status(409).json({ message: "Identificador fiscal (taxId) ya existe" });
+      }
+      throw e;
+    }
   },
   async get(req: Request, res: Response) {
     const { id } = req.params;
@@ -26,8 +50,15 @@ export const clientController = {
     const { id } = req.params;
     const parsed = UpsertClientDto.partial().safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ message: "Invalid" });
-    const updated = await clientService.update(id, parsed.data);
-    res.json({ data: updated });
+    try {
+      const updated = await clientService.update(id, parsed.data);
+      res.json({ data: updated });
+    } catch (e: any) {
+      if (e.code === "P2002") {
+        return res.status(409).json({ message: "Identificador fiscal (taxId) ya existe" });
+      }
+      throw e;
+    }
   },
   async toggle(req: Request, res: Response) {
     const { id } = req.params;

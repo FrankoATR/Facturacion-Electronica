@@ -1,6 +1,6 @@
 // TODO: validar vs PDF - Módulo de Historial de Ventas
 import React, { useEffect, useState } from 'react';
-import { Search, Filter, Download, Eye, Copy, Calendar } from 'lucide-react';
+import { Search, Filter, Eye, Copy, Calendar, Download } from 'lucide-react';
 import { useInvoiceStore } from '../stores/invoiceStore';
 import { useClientStore } from '../stores/clientStore';
 import { useAuthStore } from '../stores/authStore';
@@ -12,7 +12,7 @@ import { Invoice } from '../types';
 import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 
 export const SalesHistory: React.FC = () => {
-  const { user } = useAuthStore();
+  const { user, token } = useAuthStore();
   const { invoices, loading, error, fetchInvoices, createInvoice } = useInvoiceStore();
   const { clients, fetchClients } = useClientStore();
   
@@ -137,10 +137,7 @@ export const SalesHistory: React.FC = () => {
     return client?.name || 'Cliente no encontrado';
   };
 
-  const getProductName = (productId: string) => {
-    // TODO: Implementar cuando se tenga acceso a productos en el contexto
-    return 'Producto';
-  };
+  const getProductName = (productId: string) => 'Producto';
 
   const columns = [
     {
@@ -196,16 +193,9 @@ export const SalesHistory: React.FC = () => {
           <button
             onClick={() => handleViewInvoice(invoice)}
             className="text-blue-600 hover:text-blue-800"
-            title="Ver detalle"
+            title="Ver/Descargar DTE"
           >
             <Eye size={16} />
-          </button>
-          <button
-            onClick={() => window.print()}
-            className="text-green-600 hover:text-green-800"
-            title="Descargar"
-          >
-            <Download size={16} />
           </button>
           {canCreate && (
             <button
@@ -428,10 +418,22 @@ export const SalesHistory: React.FC = () => {
             )}
 
             <div className="flex justify-end space-x-3 pt-4">
-              <Button variant="secondary" onClick={() => window.print()}>
-                <Download size={16} className="mr-2" />
-                Imprimir
-              </Button>
+              <a
+                href={`${import.meta.env.VITE_API_URL?.replace(/\/$/, '')}/dte/${viewingInvoice.id}/json?token=${token ?? ''}`}
+                target="_blank"
+                rel="noreferrer"
+                className="px-3 py-2 text-sm rounded bg-gray-100 hover:bg-gray-200"
+              >
+                Descargar JSON
+              </a>
+              <a
+                href={`${import.meta.env.VITE_API_URL?.replace(/\/$/, '')}/dte/${viewingInvoice.id}/pdf?token=${token ?? ''}`}
+                target="_blank"
+                rel="noreferrer"
+                className="px-3 py-2 text-sm rounded bg-blue-600 text-white hover:bg-blue-700"
+              >
+                Descargar PDF
+              </a>
               {canCreate && (
                 <Button onClick={() => handleCloneInvoice(viewingInvoice)}>
                   <Copy size={16} className="mr-2" />

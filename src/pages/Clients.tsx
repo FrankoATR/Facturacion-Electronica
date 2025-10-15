@@ -28,6 +28,7 @@ type ClientForm = z.infer<typeof clientSchema>;
 export const Clients: React.FC = () => {
   const { user } = useAuthStore();
   const { clients, loading, error, fetchClients, createClient, updateClient, deleteClient } = useClientStore();
+  const [createdPassword, setCreatedPassword] = useState<{ email: string; tempPassword: string } | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
@@ -104,7 +105,8 @@ export const Clients: React.FC = () => {
       if (editingClient) {
         await updateClient(editingClient.id, data);
       } else {
-        await createClient(data);
+        const creds = await createClient(data);
+        if (creds) setCreatedPassword(creds);
       }
       handleCloseModal();
     } catch (error) {
@@ -319,6 +321,24 @@ export const Clients: React.FC = () => {
             </Button>
           </div>
         </form>
+      </Modal>
+
+      {/* Password reveal modal */}
+      <Modal
+        isOpen={!!createdPassword}
+        onClose={() => setCreatedPassword(null)}
+        title="Usuario de Portal creado"
+        size="md"
+      >
+        {createdPassword && (
+          <div className="space-y-4">
+            <p className="text-sm text-gray-700">Comparte estas credenciales solo una vez con el cliente. Por seguridad, no se volverán a mostrar.</p>
+            <div className="bg-gray-50 border rounded p-4 space-y-2">
+              <div className="text-sm"><strong>Email:</strong> {createdPassword.email}</div>
+              <div className="text-sm"><strong>Contraseña temporal:</strong> {createdPassword.tempPassword}</div>
+            </div>
+          </div>
+        )}
       </Modal>
 
       {/* View Modal */}
