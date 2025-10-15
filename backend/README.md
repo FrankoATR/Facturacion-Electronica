@@ -49,7 +49,6 @@ API runs at `http://localhost:4000/api`.
 - SELLER: seller@example.com / seller1234
 - ACCOUNTANT: accountant@example.com / accountant1234
 - AUDITOR: auditor@example.com / auditor1234
-- CUSTOMER: customer@example.com / customer1234
 
 ## Main endpoints
 
