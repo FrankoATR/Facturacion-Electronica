@@ -3,6 +3,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Layout } from './components/layout/Layout';
 import { ProtectedRoute } from './components/common/ProtectedRoute';
+import { useAuthStore } from './stores/authStore';
 import { Login } from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
 import { Unauthorized } from './pages/Unauthorized';
@@ -10,8 +11,24 @@ import { Clients } from './pages/Clients';
 import { Inventory } from './pages/Inventory';
 import { Invoicing } from './pages/Invoicing';
 import { SalesHistory } from './pages/SalesHistory';
+import { Reports } from './pages/Reports';
+import { AuditLog } from './pages/AuditLog';
+import { ClientPortal } from './pages/ClientPortal';
 
 export default function App() {
+  const { user } = useAuthStore();
+
+  // Ruta inicial por rol para evitar pantallas sin permisos
+  const roleHome: Record<string, string> = {
+    administrador: '/dashboard',
+    vendedor: '/dashboard',
+    contador: '/reportes',
+    auditor: '/auditoria',
+    cliente: '/portal'
+  };
+
+  const initial = user ? roleHome[user.role] ?? '/dashboard' : '/login';
+
   return (
     <Router>
       <Routes>
@@ -28,7 +45,7 @@ export default function App() {
             </ProtectedRoute>
           }
         >
-          <Route index element={<Navigate to="/dashboard" replace />} />
+          <Route index element={<Navigate to={initial} replace />} />
           <Route 
             path="dashboard" 
             element={
@@ -67,6 +84,30 @@ export default function App() {
             element={
               <ProtectedRoute requiredModule="historial">
                 <SalesHistory />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="reportes/*" 
+            element={
+              <ProtectedRoute requiredModule="reportes">
+                <Reports />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="auditoria/*" 
+            element={
+              <ProtectedRoute requiredModule="auditoria">
+                <AuditLog />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="portal/*" 
+            element={
+              <ProtectedRoute requiredModule="portal">
+                <ClientPortal />
               </ProtectedRoute>
             } 
           />

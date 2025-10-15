@@ -7,7 +7,10 @@ export const ROLE_PERMISSIONS: RolePermissions = {
     { module: 'clientes', actions: ['read', 'create', 'update', 'delete'] },
     { module: 'inventario', actions: ['read', 'create', 'update', 'delete'] },
     { module: 'facturacion', actions: ['read', 'create', 'update', 'delete'] },
-    { module: 'historial', actions: ['read', 'create', 'update', 'delete'] }
+    { module: 'historial', actions: ['read', 'create', 'update', 'delete'] },
+    { module: 'reportes', actions: ['read'] },
+    { module: 'auditoria', actions: ['read'] },
+    { module: 'portal', actions: ['read'] }
   ],
   vendedor: [
     { module: 'dashboard', actions: ['read'] },
@@ -15,11 +18,22 @@ export const ROLE_PERMISSIONS: RolePermissions = {
     { module: 'inventario', actions: ['read'] },
     { module: 'facturacion', actions: ['read', 'create', 'update'] },
     { module: 'historial', actions: ['read'] }
+  ],
+  contador: [
+    { module: 'reportes', actions: ['read'] },
+    { module: 'auditoria', actions: ['read'] },
+    { module: 'historial', actions: ['read'] }
+  ],
+  auditor: [
+    { module: 'auditoria', actions: ['read'] }
+  ],
+  cliente: [
+    { module: 'portal', actions: ['read'] }
   ]
 };
 
 export function hasPermission(
-  userRole: 'administrador' | 'vendedor',
+  userRole: 'administrador' | 'vendedor' | 'contador' | 'auditor' | 'cliente',
   module: string,
   action: string
 ): boolean {

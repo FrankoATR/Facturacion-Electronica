@@ -2,8 +2,20 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { ShieldX, ArrowLeft } from 'lucide-react';
+import { useAuthStore } from '../stores/authStore';
 
 export const Unauthorized: React.FC = () => {
+  const { user } = useAuthStore();
+
+  const roleHome: Record<string, string> = {
+    administrador: '/dashboard',
+    vendedor: '/dashboard',
+    contador: '/reportes',
+    auditor: '/auditoria',
+    cliente: '/portal'
+  };
+
+  const homePath = user ? roleHome[user.role] ?? '/dashboard' : '/login';
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
       <div className="max-w-md w-full text-center">
@@ -21,11 +33,11 @@ export const Unauthorized: React.FC = () => {
           </p>
           
           <Link
-            to="/dashboard"
+            to={homePath}
             className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
             <ArrowLeft size={16} className="mr-2" />
-            Volver al Dashboard
+            Ir a inicio
           </Link>
         </div>
       </div>

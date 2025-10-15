@@ -14,8 +14,21 @@ interface AuthState {
 }
 
 // Mapear roles backend -> frontend
-function mapBackendRole(role: 'ADMIN' | 'SELLER'): 'administrador' | 'vendedor' {
-  return role === 'ADMIN' ? 'administrador' : 'vendedor';
+function mapBackendRole(role: 'ADMIN' | 'SELLER' | 'ACCOUNTANT' | 'AUDITOR' | 'CUSTOMER'): 'administrador' | 'vendedor' | 'contador' | 'auditor' | 'cliente' {
+  switch (role) {
+    case 'ADMIN':
+      return 'administrador';
+    case 'SELLER':
+      return 'vendedor';
+    case 'ACCOUNTANT':
+      return 'contador';
+    case 'AUDITOR':
+      return 'auditor';
+    case 'CUSTOMER':
+      return 'cliente';
+    default:
+      return 'vendedor';
+  }
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -27,7 +40,7 @@ export const useAuthStore = create<AuthState>()(
 
       login: async (email: string, password: string) => {
         try {
-          const resp = await apiFetch<{ token: string; user: { id: string; email: string; name: string; role: 'ADMIN' | 'SELLER' } }>(`/auth/login`, {
+          const resp = await apiFetch<{ token: string; user: { id: string; email: string; name: string; role: 'ADMIN' | 'SELLER' | 'ACCOUNTANT' | 'AUDITOR' | 'CUSTOMER' } }>(`/auth/login`, {
             method: 'POST',
             body: { email, password }
           });

@@ -6,6 +6,12 @@ import { productsRouter } from "./routes/products";
 import { invoicesRouter } from "./routes/invoices";
 import { salesRouter } from "./routes/sales";
 import { dashboardRouter } from "./routes/dashboard";
+import { reportsRouter } from "./routes/reports";
+import { dteRouter } from "./routes/dte";
+import { paymentsRouter } from "./routes/payments";
+import { auditRouter } from "./routes/audit";
+import { portalRouter } from "./routes/portal";
+import { backupRouter } from "./routes/backup";
 
 export const router = Router();
 
@@ -16,5 +22,11 @@ router.use("/products", productsRouter);
 router.use("/invoices", invoicesRouter);
 router.use("/sales", salesRouter);
 router.use("/dashboard", dashboardRouter);
+router.use("/reports", reportsRouter);
+router.use("/dte", dteRouter);
+router.use("/payments", paymentsRouter);
+router.use("/audit", auditRouter);
+router.use("/portal", portalRouter);
+router.use("/admin", backupRouter);
 
 

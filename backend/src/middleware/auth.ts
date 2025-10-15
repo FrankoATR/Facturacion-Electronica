@@ -16,7 +16,7 @@ export function authenticate(req: Request, res: Response, next: NextFunction) {
   }
 }
 
-export function authorize(roles: Array<"ADMIN" | "SELLER">) {
+export function authorize(roles: Array<"ADMIN" | "SELLER" | "ACCOUNTANT" | "AUDITOR" | "CUSTOMER">) {
   return (req: Request, res: Response, next: NextFunction) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
     if (!roles.includes(req.user.role)) {

@@ -1,5 +1,5 @@
 // TODO: validar vs PDF - Dashboard principal con resumen ejecutivo
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   Users, 
@@ -14,27 +14,39 @@ import {
 import { useAuthStore } from '../stores/authStore';
 import { useClientStore } from '../stores/clientStore';
 import { useProductStore } from '../stores/productStore';
+import { apiFetch } from '../lib/api';
 import { hasPermission } from '../config/permissions';
 
 export const Dashboard: React.FC = () => {
   const { user } = useAuthStore();
   const { clients, fetchClients } = useClientStore();
   const { products, fetchProducts, getLowStockProducts } = useProductStore();
+  const [metrics, setMetrics] = useState<{ users?: number; clients?: number; products?: number; invoices?: number; salesToday?: number }>({});
 
   useEffect(() => {
     fetchClients();
     fetchProducts();
+    // Cargar métricas reales desde backend (si el rol tiene acceso)
+    const load = async () => {
+      try {
+        const res = await apiFetch<{ users: number; clients: number; products: number; invoices: number; salesToday: number }>(`/dashboard/metrics`);
+        setMetrics(res);
+      } catch {
+        // Silent: algunos roles podrían no tener acceso
+      }
+    };
+    load();
   }, [fetchClients, fetchProducts]);
 
   const lowStockProducts = getLowStockProducts();
 
-  // Mock data para métricas del dashboard
-  const metrics = {
-    totalClients: clients.length,
-    totalProducts: products.length,
-    monthlyRevenue: 125750.50,
-    invoicesThisMonth: 48,
-    pendingInvoices: 5
+  // Métricas renderizadas con fallback local
+  const dashboardValues = {
+    totalClients: metrics.clients ?? clients.length,
+    totalProducts: metrics.products ?? products.length,
+    monthlyRevenue: metrics.salesToday ?? 0,
+    invoicesThisMonth: metrics.invoices ?? 0,
+    pendingInvoices: 0
   };
 
   const quickActions = [
@@ -127,7 +139,7 @@ export const Dashboard: React.FC = () => {
             <div>
               <p className="text-sm font-medium text-gray-600">Facturación del Mes</p>
               <p className="text-2xl font-bold text-gray-900">
-                ${metrics.monthlyRevenue.toLocaleString()}
+                ${dashboardValues.monthlyRevenue.toLocaleString()}
               </p>
             </div>
             <DollarSign className="h-8 w-8 text-green-500" />
@@ -138,7 +150,7 @@ export const Dashboard: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Facturas Emitidas</p>
-              <p className="text-2xl font-bold text-gray-900">{metrics.invoicesThisMonth}</p>
+              <p className="text-2xl font-bold text-gray-900">{dashboardValues.invoicesThisMonth}</p>
             </div>
             <FileText className="h-8 w-8 text-blue-500" />
           </div>
@@ -148,7 +160,7 @@ export const Dashboard: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Clientes Activos</p>
-              <p className="text-2xl font-bold text-gray-900">{metrics.totalClients}</p>
+              <p className="text-2xl font-bold text-gray-900">{dashboardValues.totalClients}</p>
             </div>
             <Users className="h-8 w-8 text-purple-500" />
           </div>
@@ -158,7 +170,7 @@ export const Dashboard: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Productos en Stock</p>
-              <p className="text-2xl font-bold text-gray-900">{metrics.totalProducts}</p>
+              <p className="text-2xl font-bold text-gray-900">{dashboardValues.totalProducts}</p>
             </div>
             <Package className="h-8 w-8 text-orange-500" />
           </div>
@@ -191,7 +203,7 @@ export const Dashboard: React.FC = () => {
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Acciones Rápidas</h2>
           <div className="space-y-3">
             {quickActions.map((action) => {
-              const canPerform = user && hasPermission(user.role, action.module, action.action);
+      const canPerform = user && hasPermission(user.role, action.module, action.action);
               
               if (!canPerform) return null;
 
@@ -217,7 +229,7 @@ export const Dashboard: React.FC = () => {
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Módulos del Sistema</h2>
           <div className="grid grid-cols-2 gap-4">
             {moduleCards.map((module) => {
-              const canAccess = user && hasPermission(user.role, module.module, module.action);
+      const canAccess = user && hasPermission(user.role, module.module, module.action);
               
               if (!canAccess) return null;
 

@@ -2,6 +2,7 @@ import { invoiceRepository } from "./invoice.repository";
 import { CreateInvoiceInput } from "./invoice.dto";
 import { prisma } from "../../config/prisma";
 import { mapInvoiceNumbers } from "../../common/serialization";
+import { appendAuditLog } from "../../common/audit";
 
 function calcTotals(items: CreateInvoiceInput["items"]) {
   const subtotal = items.reduce((acc, it) => acc + it.unitPrice * it.quantity, 0);
@@ -43,6 +44,9 @@ export const invoiceService = {
           paymentMethod: input.paymentMethod,
           notes: input.notes,
           createdById: userId,
+          // Set as ISSUED at creation so invoices are recorded as finalized
+          status: "ISSUED",
+          issuedAt: new Date(),
           subtotal,
           taxTotal,
           total,
@@ -71,6 +75,14 @@ export const invoiceService = {
       }
 
       return inv;
+    });
+
+    await appendAuditLog({
+      actorId: userId,
+      action: "INVOICE_ISSUED",
+      entity: "Invoice",
+      entityId: created.id,
+      payload: { number: created.number, clientId: created.clientId, total },
     });
 
     return mapInvoiceNumbers(created);

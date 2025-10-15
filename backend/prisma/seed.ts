@@ -6,6 +6,9 @@ const prisma = new PrismaClient();
 async function main() {
   const adminEmail = "admin@example.com";
   const sellerEmail = "seller@example.com";
+  const accountantEmail = "accountant@example.com";
+  const auditorEmail = "auditor@example.com";
+  const customerEmail = "customer@example.com";
 
   const admin = await prisma.user.upsert({
     where: { email: adminEmail },
@@ -29,8 +32,54 @@ async function main() {
     },
   });
 
+  const accountant = await prisma.user.upsert({
+    where: { email: accountantEmail },
+    update: {},
+    create: {
+      email: accountantEmail,
+      name: "Accountant",
+      role: Role.ACCOUNTANT,
+      passwordHash: await hashPassword("accountant1234"),
+    },
+  });
+
+  const auditor = await prisma.user.upsert({
+    where: { email: auditorEmail },
+    update: {},
+    create: {
+      email: auditorEmail,
+      name: "Auditor",
+      role: Role.AUDITOR,
+      passwordHash: await hashPassword("auditor1234"),
+    },
+  });
+
+  // Create a sample client and link a CUSTOMER user to it
+  const sampleClient = await prisma.client.upsert({
+    where: { taxId: "TAX-0001" },
+    update: {},
+    create: {
+      name: "Cliente Demo",
+      taxId: "TAX-0001",
+      email: "cliente@demo.com",
+      status: "ACTIVE",
+    },
+  });
+
+  const customer = await prisma.user.upsert({
+    where: { email: customerEmail },
+    update: {},
+    create: {
+      email: customerEmail,
+      name: "Customer",
+      role: Role.CUSTOMER,
+      clientId: sampleClient.id,
+      passwordHash: await hashPassword("customer1234"),
+    },
+  });
+
   // eslint-disable-next-line no-console
-  console.log({ admin: admin.email, seller: seller.email });
+  console.log({ admin: admin.email, seller: seller.email, accountant: accountant.email, auditor: auditor.email, customer: customer.email, client: sampleClient.taxId });
 }
 
 main()

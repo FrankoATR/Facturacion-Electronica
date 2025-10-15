@@ -45,8 +45,11 @@ API runs at `http://localhost:4000/api`.
 
 ## Seed users
 
-- admin@example.com / admin1234 (ADMIN)
-- seller@example.com / seller1234 (SELLER)
+- ADMIN: admin@example.com / admin1234
+- SELLER: seller@example.com / seller1234
+- ACCOUNTANT: accountant@example.com / accountant1234
+- AUDITOR: auditor@example.com / auditor1234
+- CUSTOMER: customer@example.com / customer1234
 
 ## Main endpoints
 

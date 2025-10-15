@@ -4,7 +4,8 @@ import { dashboardController } from "../../modules/dashboard/dashboard.controlle
 
 export const dashboardRouter = Router();
 
-dashboardRouter.use(authenticate, authorize(["ADMIN"]));
+// Dashboard visible para ADMIN y SELLER (según permisos de frontend)
+dashboardRouter.use(authenticate, authorize(["ADMIN", "SELLER"]));
 
 dashboardRouter.get("/metrics", dashboardController.metrics);
 
