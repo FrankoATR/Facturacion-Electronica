@@ -40,10 +40,14 @@ export const useAuthStore = create<AuthState>()(
 
       login: async (email: string, password: string) => {
         try {
+          console.log('[AUTH] Intentando login...', email);
           const resp = await apiFetch<{ token: string; user: { id: string; email: string; name: string; role: 'ADMIN' | 'SELLER' | 'ACCOUNTANT' | 'AUDITOR' | 'CUSTOMER' } }>(`/auth/login`, {
             method: 'POST',
             body: { email, password }
           });
+          
+          console.log('[AUTH] Login response:', resp);
+          
           const mappedUser: User = {
             id: resp.user.id,
             name: resp.user.name,
@@ -52,10 +56,18 @@ export const useAuthStore = create<AuthState>()(
             isActive: true,
             createdAt: new Date()
           };
+          
           set({ user: mappedUser, isAuthenticated: true, token: resp.token });
+          
+          // Guardar token también en localStorage directamente como backup
+          localStorage.setItem('auth-token', resp.token);
+          
           console.log(`[AUTH] Usuario autenticado: ${mappedUser.name} (${mappedUser.role})`);
+          console.log('[AUTH] Token guardado:', resp.token.substring(0, 20) + '...');
+          
           return true;
-        } catch (e) {
+        } catch (e: any) {
+          console.error('[AUTH] Login failed:', e.message);
           return false;
         }
       },
@@ -65,6 +77,7 @@ export const useAuthStore = create<AuthState>()(
         if (user) {
           console.log(`[AUTH] Usuario desconectado: ${user.name}`);
         }
+        localStorage.removeItem('auth-token');
         set({ user: null, isAuthenticated: false, token: null });
       },
 

@@ -5,6 +5,7 @@ export const InvoiceItemDto = z.object({
   description: z.string().min(1),
   quantity: z.number().int().positive(),
   unitPrice: z.number().positive(),
+  discount: z.number().min(0).default(0), // Descuento por item
   taxRate: z.number().min(0),
 });
 

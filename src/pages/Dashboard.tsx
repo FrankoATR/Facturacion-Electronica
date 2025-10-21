@@ -9,7 +9,8 @@ import {
   TrendingUp, 
   DollarSign,
   AlertTriangle,
-  Plus
+  Plus,
+  Download
 } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
 import { useClientStore } from '../stores/clientStore';
@@ -22,6 +23,7 @@ export const Dashboard: React.FC = () => {
   const { clients, fetchClients } = useClientStore();
   const { products, fetchProducts, getLowStockProducts } = useProductStore();
   const [metrics, setMetrics] = useState<{ users?: number; clients?: number; products?: number; invoices?: number; salesToday?: number }>({});
+  const [downloading, setDownloading] = useState(false);
 
   useEffect(() => {
     fetchClients();
@@ -37,6 +39,34 @@ export const Dashboard: React.FC = () => {
     };
     load();
   }, [fetchClients, fetchProducts]);
+
+  const handleBackupDownload = async () => {
+    try {
+      setDownloading(true);
+      const response = await fetch(`${import.meta.env.VITE_API_URL?.replace(/\/$/, '')}/admin/backup/invoices`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth-token')}`,
+        },
+      });
+      
+      if (!response.ok) throw new Error('Error al generar backup');
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `backup-facturas-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error('Error downloading backup:', error);
+      alert('Error al descargar backup');
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   const lowStockProducts = getLowStockProducts();
 
@@ -193,6 +223,42 @@ export const Dashboard: React.FC = () => {
                 </Link>
               </p>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Backup para Administradores */}
+      {user?.role === 'administrador' && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <Download className="h-5 w-5 text-blue-600 mr-3" />
+              <div>
+                <h3 className="text-sm font-medium text-blue-800">
+                  Backup de Facturas
+                </h3>
+                <p className="text-sm text-blue-700 mt-1">
+                  Descarga un respaldo completo de todas las facturas en formato JSON
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={handleBackupDownload}
+              disabled={downloading}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+            >
+              {downloading ? (
+                <>
+                  <span className="animate-spin mr-2">⏳</span>
+                  Generando...
+                </>
+              ) : (
+                <>
+                  <Download size={16} className="mr-2" />
+                  Descargar Backup
+                </>
+              )}
+            </button>
           </div>
         </div>
       )}

@@ -1,9 +1,14 @@
-const BASE_URL = import.meta.env.VITE_API_URL?.replace(/\/$/, '') || '';
+const BASE_URL = import.meta.env.VITE_API_URL?.replace(/\/$/, '') || 'http://localhost:4000/api';
 
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 
 function getStoredToken(): string | null {
   try {
+    // Primero intentar del backup directo
+    const directToken = localStorage.getItem('auth-token');
+    if (directToken) return directToken;
+    
+    // Sino, buscar en el persist de Zustand
     const raw = localStorage.getItem('auth-storage');
     if (!raw) return null;
     const parsed = JSON.parse(raw);
@@ -21,15 +26,32 @@ export async function apiFetch<T>(path: string, options: { method?: HttpMethod; 
     'Content-Type': 'application/json',
     ...(options.headers || {})
   };
-  if (token) headers['Authorization'] = `Bearer ${token}`;
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  } else {
+    console.warn('[API] No token found in storage');
+  }
 
-  const res = await fetch(`${BASE_URL}${path}`, {
+  const url = `${BASE_URL}${path}`;
+  console.log(`[API] ${method} ${url}`, token ? '(with auth)' : '(no auth)');
+
+  const res = await fetch(url, {
     method,
     headers,
     body: options.body ? JSON.stringify(options.body) : undefined,
   });
 
   if (!res.ok) {
+    if (res.status === 401) {
+      console.error('[API] 401 Unauthorized - Token might be invalid or expired');
+      // Limpiar auth store si el token es inválido
+      const authState = localStorage.getItem('auth-storage');
+      if (authState) {
+        console.log('[API] Clearing invalid auth state');
+        localStorage.removeItem('auth-storage');
+        window.location.href = '/login';
+      }
+    }
     const msg = await res.text().catch(() => 'Request failed');
     throw new Error(msg || `HTTP ${res.status}`);
   }

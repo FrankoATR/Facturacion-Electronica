@@ -84,6 +84,7 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
           description: it.productId ? 'Item' : 'Item libre',
           quantity: it.quantity,
           unitPrice: it.unitPrice,
+          discount: it.discount || 0,
           taxRate: it.taxRate,
         })),
       };
@@ -173,8 +174,10 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
     const updatedItems = currentInvoice.items.map(item => {
       if (item.id === itemId) {
         const updatedItem = { ...item, ...updates };
-        // Recalcular totales del item
-        updatedItem.subtotal = updatedItem.quantity * updatedItem.unitPrice;
+        // Recalcular totales del item con descuento
+        const baseAmount = updatedItem.quantity * updatedItem.unitPrice;
+        const discount = updatedItem.discount || 0;
+        updatedItem.subtotal = baseAmount - discount;
         updatedItem.taxAmount = updatedItem.subtotal * (updatedItem.taxRate / 100);
         updatedItem.total = updatedItem.subtotal + updatedItem.taxAmount;
         return updatedItem;

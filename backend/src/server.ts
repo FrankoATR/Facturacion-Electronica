@@ -13,6 +13,7 @@ import {
   preventTimingAttacks,
   securityHeaders 
 } from "./middleware/security";
+import { initStockMonitoring } from "./cron/stock-monitor";
 
 const app = express();
 
@@ -114,6 +115,9 @@ const server = app.listen(env.port, () => {
   console.log('║     ✓ Security Event Logging                            ║');
   console.log('║                                                          ║');
   console.log('╚══════════════════════════════════════════════════════════╝');
+  
+  // Iniciar monitoreo de stock
+  initStockMonitoring();
 });
 
 // Graceful shutdown

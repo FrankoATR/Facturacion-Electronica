@@ -37,6 +37,7 @@ export const Invoicing: React.FC = () => {
   const [viewingInvoice, setViewingInvoice] = useState<Invoice | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<string>('');
   const [itemQuantity, setItemQuantity] = useState<number>(1);
+  const [itemDiscount, setItemDiscount] = useState<number>(0);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
@@ -121,7 +122,16 @@ export const Invoicing: React.FC = () => {
       return;
     }
 
-    const subtotal = itemQuantity * product.unitPrice;
+    const baseAmount = itemQuantity * product.unitPrice;
+    const discount = itemDiscount || 0;
+    
+    // Validar que el descuento no sea mayor que el monto base
+    if (discount > baseAmount) {
+      alert('El descuento no puede ser mayor que el monto total del producto');
+      return;
+    }
+    
+    const subtotal = baseAmount - discount;
     const taxAmount = subtotal * (product.taxRate / 100);
     const total = subtotal + taxAmount;
 
@@ -129,6 +139,7 @@ export const Invoicing: React.FC = () => {
       productId: product.id,
       quantity: itemQuantity,
       unitPrice: product.unitPrice,
+      discount,
       taxRate: product.taxRate,
       subtotal,
       taxAmount,
@@ -138,6 +149,7 @@ export const Invoicing: React.FC = () => {
     addItemToCurrentInvoice(newItem);
     setSelectedProduct('');
     setItemQuantity(1);
+    setItemDiscount(0);
   };
 
   const handleRemoveItem = (itemId: string) => {
@@ -318,7 +330,9 @@ export const Invoicing: React.FC = () => {
               >
                 <option value="">Seleccionar cliente</option>
                 {clients.map(client => (
-                  <option key={client.id} value={client.id}>{client.name}</option>
+                  <option key={client.id} value={client.id}>
+                    {client.taxId} - {client.name}
+                  </option>
                 ))}
               </select>
               {errors.clientId && (
@@ -383,6 +397,19 @@ export const Invoicing: React.FC = () => {
                 />
               </div>
               
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Descuento ($)</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={itemDiscount}
+                  onChange={(e) => setItemDiscount(Number(e.target.value))}
+                  className="mt-1 block w-24 px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="0.00"
+                />
+              </div>
+              
               <Button
                 type="button"
                 onClick={handleAddItem}
@@ -399,10 +426,11 @@ export const Invoicing: React.FC = () => {
                   <thead>
                     <tr className="text-left text-sm font-medium text-gray-700">
                       <th className="pb-2">Producto</th>
-                      <th className="pb-2">Cantidad</th>
-                      <th className="pb-2">Precio Unit.</th>
+                      <th className="pb-2">Cant.</th>
+                      <th className="pb-2">P. Unit.</th>
+                      <th className="pb-2">Desc.</th>
                       <th className="pb-2">Subtotal</th>
-                      <th className="pb-2">Impuesto</th>
+                      <th className="pb-2">IVA</th>
                       <th className="pb-2">Total</th>
                       <th className="pb-2"></th>
                     </tr>
@@ -413,6 +441,7 @@ export const Invoicing: React.FC = () => {
                         <td className="py-2">{getProductName(item.productId)}</td>
                         <td className="py-2">{item.quantity}</td>
                         <td className="py-2">${item.unitPrice.toFixed(2)}</td>
+                        <td className="py-2">{item.discount ? `-$${item.discount.toFixed(2)}` : '-'}</td>
                         <td className="py-2">${item.subtotal.toFixed(2)}</td>
                         <td className="py-2">${item.taxAmount.toFixed(2)}</td>
                         <td className="py-2 font-medium">${item.total.toFixed(2)}</td>
@@ -430,7 +459,7 @@ export const Invoicing: React.FC = () => {
                   </tbody>
                   <tfoot className="border-t">
                     <tr className="font-medium">
-                      <td colSpan={3} className="py-2 text-right">Totales:</td>
+                      <td colSpan={4} className="py-2 text-right">Totales:</td>
                       <td className="py-2">${currentInvoice.subtotal.toFixed(2)}</td>
                       <td className="py-2">${currentInvoice.totalTax.toFixed(2)}</td>
                       <td className="py-2 text-lg">${currentInvoice.total.toFixed(2)}</td>

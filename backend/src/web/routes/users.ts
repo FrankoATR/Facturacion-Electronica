@@ -9,6 +9,7 @@ usersRouter.use(authenticate, authorize(["ADMIN"]));
 usersRouter.get("/", userController.list);
 usersRouter.post("/", userController.create);
 usersRouter.patch("/:id", userController.update);
+usersRouter.patch("/:id/toggle", userController.toggle);
 usersRouter.post("/:id/reset-password", userController.resetPassword);
 usersRouter.delete("/:id", userController.remove);
 

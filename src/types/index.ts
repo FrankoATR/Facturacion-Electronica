@@ -38,6 +38,7 @@ export interface InvoiceItem {
   productId: string;
   quantity: number;
   unitPrice: number;
+  discount?: number;
   taxRate: number;
   subtotal: number;
   taxAmount: number;

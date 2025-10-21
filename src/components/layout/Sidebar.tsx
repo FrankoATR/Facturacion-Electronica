@@ -9,7 +9,8 @@ import {
   History,
   ShieldQuestion,
   FileBarChart2,
-  LogOut
+  LogOut,
+  UserCog
 } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
 import { hasPermission } from '../../config/permissions';
@@ -33,6 +34,7 @@ const navItems: NavItem[] = [
   { to: '/inventario', icon: Package, label: 'Inventario', module: 'inventario', action: 'read' },
   { to: '/facturacion', icon: FileText, label: 'Facturación', module: 'facturacion', action: 'read' },
   { to: '/historial', icon: History, label: 'Historial de Ventas', module: 'historial', action: 'read' },
+  { to: '/usuarios', icon: UserCog, label: 'Gestión de Usuarios', module: 'dashboard', action: 'read' },
   { to: '/reportes', icon: FileBarChart2, label: 'Reporte IVA', module: 'reportes', action: 'read' },
   { to: '/auditoria', icon: ShieldQuestion, label: 'Bitácora', module: 'auditoria', action: 'read' },
   { to: '/portal', icon: FileText, label: 'Portal Cliente', module: 'portal', action: 'read' }

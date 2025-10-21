@@ -34,6 +34,12 @@ export const env = {
   loginLockoutDuration: parseNumber(process.env.LOGIN_LOCKOUT_DURATION, 15 * 60 * 1000),
   // Configuración de sesión
   sessionTimeout: parseNumber(process.env.SESSION_TIMEOUT, 30 * 60 * 1000), // 30 minutos
+  // Configuración SMTP
+  smtpHost: process.env.SMTP_HOST || "smtp.office365.com",
+  smtpPort: parseNumber(process.env.SMTP_PORT, 587),
+  smtpUser: process.env.SMTP_USER || "",
+  smtpPass: process.env.SMTP_PASS || "",
+  smtpFrom: process.env.SMTP_FROM || "Adventure Works <00086221@uca.edu.sv>",
 };
 
 

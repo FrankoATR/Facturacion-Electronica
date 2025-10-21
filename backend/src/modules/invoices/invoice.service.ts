@@ -3,10 +3,25 @@ import { CreateInvoiceInput } from "./invoice.dto";
 import { prisma } from "../../config/prisma";
 import { mapInvoiceNumbers } from "../../common/serialization";
 import { appendAuditLog } from "../../common/audit";
+import { notificationService } from "../notifications/notification.service";
+import { stockAlertService } from "../inventory/stock-alert.service";
 
 function calcTotals(items: CreateInvoiceInput["items"]) {
-  const subtotal = items.reduce((acc, it) => acc + it.unitPrice * it.quantity, 0);
-  const taxTotal = items.reduce((acc, it) => acc + (it.unitPrice * it.quantity) * (it.taxRate / 100), 0);
+  // Calcular subtotal considerando descuentos
+  const subtotal = items.reduce((acc, it) => {
+    const baseAmount = it.unitPrice * it.quantity;
+    const discount = it.discount || 0;
+    return acc + (baseAmount - discount);
+  }, 0);
+  
+  // IVA 13% sobre el subtotal después de descuentos
+  const taxTotal = items.reduce((acc, it) => {
+    const baseAmount = it.unitPrice * it.quantity;
+    const discount = it.discount || 0;
+    const taxableAmount = baseAmount - discount;
+    return acc + (taxableAmount * (it.taxRate / 100));
+  }, 0);
+  
   const total = subtotal + taxTotal;
   return { subtotal, taxTotal, total };
 }
@@ -51,16 +66,25 @@ export const invoiceService = {
           taxTotal,
           total,
           items: {
-            create: input.items.map(it => ({
-              productId: it.productId,
-              description: it.description,
-              quantity: it.quantity,
-              unitPrice: it.unitPrice,
-              taxRate: it.taxRate,
-              subtotal: it.unitPrice * it.quantity,
-              taxAmount: (it.unitPrice * it.quantity) * (it.taxRate / 100),
-              total: (it.unitPrice * it.quantity) * (1 + it.taxRate / 100),
-            })),
+            create: input.items.map(it => {
+              const baseAmount = it.unitPrice * it.quantity;
+              const discount = it.discount || 0;
+              const subtotal = baseAmount - discount;
+              const taxAmount = subtotal * (it.taxRate / 100);
+              const total = subtotal + taxAmount;
+              
+              return {
+                productId: it.productId,
+                description: it.description,
+                quantity: it.quantity,
+                unitPrice: it.unitPrice,
+                discount,
+                taxRate: it.taxRate,
+                subtotal,
+                taxAmount,
+                total,
+              };
+            }),
           },
         },
         include: { items: true },
@@ -77,6 +101,13 @@ export const invoiceService = {
       return inv;
     });
 
+    // Verificar stock bajo para cada producto vendido
+    for (const it of input.items) {
+      if (it.productId) {
+        await stockAlertService.checkProductStock(it.productId);
+      }
+    }
+
     await appendAuditLog({
       actorId: userId,
       action: "INVOICE_ISSUED",
@@ -84,6 +115,14 @@ export const invoiceService = {
       entityId: created.id,
       payload: { number: created.number, clientId: created.clientId, total },
     });
+
+    // Crear notificación para admins
+    await notificationService.notifyAdmins(
+      "INVOICE_ISSUED",
+      "Factura Emitida",
+      `Factura ${created.number} emitida por $${total.toFixed(2)}`,
+      { invoiceId: created.id, invoiceNumber: created.number, total }
+    );
 
     return mapInvoiceNumbers(created);
   },

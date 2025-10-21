@@ -39,6 +39,14 @@ export const userController = {
     await userService.disable(id);
     res.status(204).send();
   },
+  async toggle(req: Request, res: Response) {
+    const { id } = req.params;
+    const user = await userService.findById(id);
+    if (!user) return res.status(404).json({ message: "User not found" });
+    
+    const updated = await userService.update(id, { isActive: !user.isActive } as any);
+    res.json({ data: updated });
+  },
 };
 
 

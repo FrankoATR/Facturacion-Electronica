@@ -44,7 +44,7 @@ export const Login: React.FC = () => {
       const success = await login(sanitizedEmail, data.password);
       
       if (!success) {
-        setLoginError('Credenciales inválidas. Use admin@example.com con contraseña: admin1234');
+        setLoginError('Credenciales inválidas. Verifique su email y contraseña.');
       }
     } catch (error) {
       setLoginError('Error al iniciar sesión. Intente nuevamente.');
@@ -83,7 +83,7 @@ export const Login: React.FC = () => {
                 type="email"
                 autoComplete="email"
                 className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                placeholder="admin@example.com"
+                placeholder="usuario@ejemplo.com"
               />
               {errors.email && (
                 <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>
@@ -100,7 +100,7 @@ export const Login: React.FC = () => {
                   type={showPassword ? 'text' : 'password'}
                   autoComplete="current-password"
                   className="block w-full px-3 py-2 pr-10 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="admin1234"
+                  placeholder="••••••••"
                 />
                 <button
                   type="button"
@@ -128,14 +128,6 @@ export const Login: React.FC = () => {
             </button>
           </form>
 
-          <div className="mt-6 border-t pt-6">
-            <div className="text-sm text-gray-600">
-              <p className="mb-2"><strong>Usuarios de prueba:</strong></p>
-              <p>• <strong>Administrador:</strong> admin@example.com / admin1234</p>
-              <p>• <strong>Vendedor:</strong> seller@example.com / seller1234</p>
-              <p>• <strong>Contador:</strong> accountant@example.com / accountant1234</p>
-            </div>
-          </div>
         </div>
       </div>
     </div>

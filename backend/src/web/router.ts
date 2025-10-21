@@ -12,6 +12,7 @@ import { paymentsRouter } from "./routes/payments";
 import { auditRouter } from "./routes/audit";
 import { portalRouter } from "./routes/portal";
 import { backupRouter } from "./routes/backup";
+import { notificationsRouter } from "./routes/notifications";
 
 export const router = Router();
 
@@ -28,5 +29,6 @@ router.use("/payments", paymentsRouter);
 router.use("/audit", auditRouter);
 router.use("/portal", portalRouter);
 router.use("/admin", backupRouter);
+router.use("/notifications", notificationsRouter);
 
 

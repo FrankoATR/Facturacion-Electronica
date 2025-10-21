@@ -14,6 +14,7 @@ import { SalesHistory } from './pages/SalesHistory';
 import { Reports } from './pages/Reports';
 import { AuditLog } from './pages/AuditLog';
 import { ClientPortal } from './pages/ClientPortal';
+import { Users } from './pages/Users';
 
 export default function App() {
   const { user } = useAuthStore();
@@ -108,6 +109,14 @@ export default function App() {
             element={
               <ProtectedRoute requiredModule="portal">
                 <ClientPortal />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="usuarios/*" 
+            element={
+              <ProtectedRoute requiredModule="dashboard">
+                <Users />
               </ProtectedRoute>
             } 
           />
