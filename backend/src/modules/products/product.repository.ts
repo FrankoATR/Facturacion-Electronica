@@ -32,7 +32,14 @@ export const productRepository = {
     return { data, total };
   },
   async create(data: ProductCreateInput) {
-    return prisma.product.create({ data });
+    try {
+      return await prisma.product.create({ data });
+    } catch (error: any) {
+      if (error.code === 'P2002' && error.meta?.target?.includes('sku')) {
+        throw new Error('El SKU ya existe. Por favor use un SKU único para este producto.');
+      }
+      throw error;
+    }
   },
   async update(id: string, data: ProductUpdateInput) {
     return prisma.product.update({ where: { id }, data });

@@ -65,8 +65,17 @@ export const useProductStore = create<ProductState>((set, get) => ({
     try {
       const res = await apiFetch<{ data: any }>(`/products`, { method: 'POST', body: productData });
       set(state => ({ products: [...state.products, mapApiProduct(res.data)], loading: false }));
-    } catch (error) {
-      set({ error: 'Error al crear producto', loading: false });
+    } catch (error: any) {
+      let errorMsg = 'Error al crear producto';
+      if (error.message?.includes('SKU')) {
+        errorMsg = error.message; // Usar el mensaje del servidor
+      } else if (error.message?.includes('Unique constraint')) {
+        errorMsg = 'Error: Datos duplicados. Verifique que el SKU y nombre sean únicos.';
+      } else if (error.message) {
+        errorMsg = error.message;
+      }
+      set({ error: errorMsg, loading: false });
+      throw new Error(errorMsg);
     }
   },
 

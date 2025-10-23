@@ -1,4 +1,4 @@
-import nodemailer from "nodemailer";
+import * as nodemailer from "nodemailer";
 import { env } from "../../config/env";
 
 // Configurar transporter de nodemailer (opcional)
@@ -14,14 +14,19 @@ const initTransporter = () => {
     transporter = nodemailer.createTransport({
       host: env.smtpHost,
       port: env.smtpPort,
-      secure: false,
+      secure: false, // true para 465, false para otros puertos
+      requireTLS: true, // Esto es clave para Office365
       auth: {
         user: env.smtpUser,
         pass: env.smtpPass,
       },
       tls: {
-        rejectUnauthorized: false,
+        ciphers: 'SSLv3',
+        rejectUnauthorized: false, // Solo para desarrollo
       },
+      connectionTimeout: 60000, // 60 segundos
+      greetingTimeout: 30000, // 30 segundos
+      socketTimeout: 60000, // 60 segundos
     });
 
     // Verificar la conexión SMTP (sin bloquear inicio)

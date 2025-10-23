@@ -16,6 +16,9 @@ export const userService = {
   async disable(id: string) {
     await userRepository.softDelete(id);
   },
+  async findById(id: string) {
+    return userRepository.findById(id);
+  },
   async findByEmail(email: string) {
     return userRepository.findByEmail(email);
   },

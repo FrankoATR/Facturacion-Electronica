@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Plus, Search, Edit2, Trash2, Check, X } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
 import { hasPermission } from '../config/permissions';
+import { showError, showSuccess } from '../lib/toast';
 import { Button } from '../components/common/Button';
 import { Input } from '../components/common/Input';
 import { DataTable } from '../components/common/DataTable';
@@ -91,8 +92,10 @@ export const Users: React.FC = () => {
         method: 'PATCH',
       });
       await fetchUsers();
+      showSuccess('Estado del usuario actualizado exitosamente');
     } catch (err: any) {
       setError(err.message || 'Error al cambiar estado del usuario');
+      showError('Error al cambiar estado del usuario');
     }
   };
 
@@ -104,8 +107,10 @@ export const Users: React.FC = () => {
         method: 'DELETE',
       });
       await fetchUsers();
+      showSuccess('Usuario eliminado exitosamente');
     } catch (err: any) {
       setError(err.message || 'Error al eliminar usuario');
+      showError('Error al eliminar usuario');
     }
   };
 

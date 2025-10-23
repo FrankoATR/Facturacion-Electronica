@@ -3,6 +3,7 @@ import { apiFetch } from '../lib/api';
 import { format } from 'date-fns';
 import { Button } from '../components/common/Button';
 import { DataTable } from '../components/common/DataTable';
+import { showError, showSuccess } from '../lib/toast';
 
 export const Reports: React.FC = () => {
   const [from, setFrom] = useState<string>(format(new Date(new Date().getFullYear(), 0, 1), 'yyyy-MM-dd'));
@@ -16,9 +17,12 @@ export const Reports: React.FC = () => {
       setError(null);
       const res = await apiFetch(`/reports/iva?from=${from}&to=${to}`);
       setData(res);
+      showSuccess('Reporte de IVA cargado exitosamente');
     } catch (e: any) {
-      setError('No se pudo cargar el reporte de IVA');
+      const errorMsg = e.message || 'No se pudo cargar el reporte de IVA';
+      setError(errorMsg);
       setData(null);
+      showError(`Error al cargar reporte: ${errorMsg}`);
     }
   };
 

@@ -4,6 +4,7 @@ import { Plus, Search, Edit, Trash2, Package, AlertTriangle } from 'lucide-react
 import { useProductStore } from '../stores/productStore';
 import { useAuthStore } from '../stores/authStore';
 import { hasPermission } from '../config/permissions';
+import { showError, showSuccess } from '../lib/toast';
 import { Button } from '../components/common/Button';
 import { Input } from '../components/common/Input';
 import { DataTable } from '../components/common/DataTable';
@@ -113,12 +114,20 @@ export const Inventory: React.FC = () => {
     try {
       if (editingProduct) {
         await updateProduct(editingProduct.id, data);
+        showSuccess('Producto actualizado exitosamente');
       } else {
         await createProduct(data);
+        showSuccess('Producto creado exitosamente');
       }
       handleCloseModal();
-    } catch (error) {
-      console.error('Error al guardar producto:', error);
+    } catch (error: any) {
+      if (error.message?.includes('SKU')) {
+        showError(error.message);
+      } else if (error.message?.includes('email')) {
+        showError('Error: El email ya está en uso. Por favor use un email diferente.');
+      } else {
+        showError(error.message || 'Error al guardar producto. Verifique los datos e intente nuevamente.');
+      }
     }
   };
 
@@ -128,8 +137,18 @@ export const Inventory: React.FC = () => {
   };
 
   const handleStockSave = async (productId: string) => {
-    await updateStock(productId, newStock);
-    setStockEditingId(null);
+    if (newStock < 0) {
+      showError('El stock debe ser un número positivo');
+      return;
+    }
+
+    try {
+      await updateStock(productId, newStock);
+      showSuccess('Stock actualizado exitosamente');
+      setStockEditingId(null);
+    } catch (error: any) {
+      showError(error.message || 'Error al actualizar stock. Intente nuevamente.');
+    }
   };
 
   const handleStockCancel = () => {
@@ -138,8 +157,13 @@ export const Inventory: React.FC = () => {
   };
 
   const handleDelete = async (product: Product) => {
-    if (window.confirm(`¿Está seguro de eliminar el producto "${product.name}"?`)) {
-      await deleteProduct(product.id);
+    if (window.confirm(`⚠️ ATENCIÓN: ¿Está seguro de ELIMINAR PERMANENTEMENTE el producto "${product.name}"?\n\nEsta acción eliminará el producto del sistema y no se podrá deshacer.\n\n¿Continuar?`)) {
+      try {
+        await deleteProduct(product.id);
+        showSuccess('Producto eliminado exitosamente');
+      } catch (error: any) {
+        showError(error.message || 'Error al eliminar producto. Intente nuevamente.');
+      }
     }
   };
 

@@ -3,7 +3,7 @@ export interface User {
   id: string;
   name: string;
   email: string;
-  role: 'administrador' | 'vendedor' | 'contador' | 'auditor' | 'cliente';
+  role: 'ADMIN' | 'SELLER' | 'ACCOUNTANT' | 'AUDITOR' | 'CUSTOMER';
   isActive: boolean;
   createdAt: Date;
 }
@@ -70,14 +70,14 @@ export interface SalesRecord extends Invoice {
 
 // SSDLC Touchpoint: Definición de permisos por rol
 export interface Permission {
-  module: 'clientes' | 'inventario' | 'facturacion' | 'historial' | 'dashboard' | 'reportes' | 'auditoria' | 'portal';
+  module: 'clientes' | 'inventario' | 'facturacion' | 'historial' | 'dashboard' | 'reportes' | 'auditoria' | 'portal' | 'usuarios';
   actions: ('read' | 'create' | 'update' | 'delete')[];
 }
 
 export interface RolePermissions {
-  administrador: Permission[];
-  vendedor: Permission[];
-  contador: Permission[];
-  auditor: Permission[];
-  cliente: Permission[];
+  ADMIN: Permission[];
+  SELLER: Permission[];
+  ACCOUNTANT: Permission[];
+  AUDITOR: Permission[];
+  CUSTOMER: Permission[];
 }

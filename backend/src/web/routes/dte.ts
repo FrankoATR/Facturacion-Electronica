@@ -129,11 +129,11 @@ dteRouter.get("/:invoiceId/pdf", authenticateFromQueryOrHeader, authorize(["ADMI
   doc.pipe(res);
 
   // === HEADER CON LOGO ===
-  doc.fontSize(24).fillColor('#667eea').text('🏪 ADVENTURE WORKS', { align: 'center' });
-  doc.fontSize(10).fillColor('#333').text('ADVENTURE WORKS S.A. DE C.V.', { align: 'center' });
+  doc.fontSize(24).fillColor('#ff6b35').text('⚡ EleCtroZ', { align: 'center' });
+  doc.fontSize(10).fillColor('#333').text('EleCtroZ S.A. DE C.V.', { align: 'center' });
   doc.text('NIT: 0614-031289-001-9 | NRC: 12345-6', { align: 'center' });
   doc.text('Colonia Escalón, San Salvador, El Salvador', { align: 'center' });
-  doc.text('Tel: 2222-2222 | Email: info@adventureworks.com.sv', { align: 'center' });
+  doc.text('Tel: 2222-2222 | Email: info@electroz.com', { align: 'center' });
   doc.moveDown();
 
   // Línea divisoria
@@ -141,7 +141,7 @@ dteRouter.get("/:invoiceId/pdf", authenticateFromQueryOrHeader, authorize(["ADMI
   doc.moveDown();
 
   // === TIPO DE DOCUMENTO ===
-  doc.fontSize(16).fillColor('#667eea').text('FACTURA ELECTRÓNICA', { align: 'center' });
+  doc.fontSize(16).fillColor('#ff6b35').text('FACTURA ELECTRÓNICA', { align: 'center' });
   doc.fontSize(12).fillColor('#333').text(`No. ${dto.number}`, { align: 'center' });
   doc.moveDown();
 
@@ -161,7 +161,7 @@ dteRouter.get("/:invoiceId/pdf", authenticateFromQueryOrHeader, authorize(["ADMI
   doc.moveDown();
 
   // === INFORMACIÓN DEL CLIENTE ===
-  doc.fillColor('#667eea').fontSize(12).text('DATOS DEL CLIENTE', { underline: true });
+  doc.fillColor('#ff6b35').fontSize(12).text('DATOS DEL CLIENTE', { underline: true });
   doc.moveDown(0.5);
   doc.fillColor('#333').fontSize(10);
   doc.text(`Nombre: ${dto.client.name}`);
@@ -172,7 +172,7 @@ dteRouter.get("/:invoiceId/pdf", authenticateFromQueryOrHeader, authorize(["ADMI
   doc.moveDown();
 
   // === TABLA DE ITEMS ===
-  doc.fillColor('#667eea').fontSize(12).text('DETALLE DE PRODUCTOS/SERVICIOS', { underline: true });
+  doc.fillColor('#ff6b35').fontSize(12).text('DETALLE DE PRODUCTOS/SERVICIOS', { underline: true });
   doc.moveDown(0.5);
 
   // Encabezado de tabla
@@ -228,7 +228,7 @@ dteRouter.get("/:invoiceId/pdf", authenticateFromQueryOrHeader, authorize(["ADMI
 
   yPosition += 20;
   doc.fontSize(12).font('Helvetica-Bold');
-  doc.fillColor('#667eea');
+  doc.fillColor('#ff6b35');
   doc.text('TOTAL A PAGAR:', 400, yPosition);
   doc.text(`$${dto.totals.total.toFixed(2)}`, 480, yPosition, { align: 'right' });
 

@@ -14,6 +14,7 @@ import { Invoice, InvoiceItem, Client, Product } from '../types';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { showError, showSuccess } from '../lib/toast';
 
 // SSDLC Touchpoint: Validación de entradas para facturación
 const invoiceSchema = z.object({
@@ -118,7 +119,7 @@ export const Invoicing: React.FC = () => {
 
     // SSDLC Touchpoint: Validación de negocio - stock suficiente
     if (product.stock < itemQuantity) {
-      alert('Stock insuficiente');
+      showError('Stock insuficiente');
       return;
     }
 
@@ -127,7 +128,7 @@ export const Invoicing: React.FC = () => {
     
     // Validar que el descuento no sea mayor que el monto base
     if (discount > baseAmount) {
-      alert('El descuento no puede ser mayor que el monto total del producto');
+      showError('El descuento no puede ser mayor que el monto total del producto');
       return;
     }
     
@@ -158,7 +159,7 @@ export const Invoicing: React.FC = () => {
 
   const onSubmit = async (data: InvoiceForm) => {
     if (!currentInvoice || currentInvoice.items.length === 0) {
-      alert('Debe agregar al menos un item a la factura');
+      showError('Debe agregar al menos un item a la factura');
       return;
     }
 
@@ -171,9 +172,12 @@ export const Invoicing: React.FC = () => {
       };
 
       await createInvoice(invoiceData);
+      showSuccess('Factura emitida exitosamente');
       handleCloseCreateModal();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error al crear factura:', error);
+      const errorMessage = error.message || 'Error al crear factura';
+      showError(`Error al crear factura: ${errorMessage}`);
     }
   };
 
@@ -224,7 +228,10 @@ export const Invoicing: React.FC = () => {
         const statusColors = {
           borrador: 'bg-gray-100 text-gray-800',
           emitida: 'bg-green-100 text-green-800',
-          anulada: 'bg-red-100 text-red-800'
+          anulada: 'bg-red-100 text-red-800',
+          DRAFT: 'bg-gray-100 text-gray-800',
+          ISSUED: 'bg-green-100 text-green-800',
+          CANCELED: 'bg-red-100 text-red-800'
         };
         
         return (

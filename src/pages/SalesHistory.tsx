@@ -10,6 +10,7 @@ import { DataTable } from '../components/common/DataTable';
 import { Modal } from '../components/common/Modal';
 import { Invoice } from '../types';
 import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
+import { showError, showSuccess } from '../lib/toast';
 
 export const SalesHistory: React.FC = () => {
   const { user, token } = useAuthStore();
@@ -50,9 +51,14 @@ export const SalesHistory: React.FC = () => {
     const matchesType = !typeFilter || invoice.type === typeFilter;
     const matchesClient = !clientFilter || invoice.clientId === clientFilter;
     
-    const matchesDateRange = !invoiceDate || (
-      invoiceDate >= new Date(dateFrom) && invoiceDate <= new Date(dateTo + 'T23:59:59')
-    );
+    const matchesDateRange = (() => {
+      if (!invoiceDate || !dateFrom || !dateTo) return true;
+      
+      const from = new Date(dateFrom + 'T00:00:00');
+      const to = new Date(dateTo + 'T23:59:59');
+      
+      return invoiceDate >= from && invoiceDate <= to;
+    })();
 
     return matchesSearch && matchesStatus && matchesType && matchesClient && matchesDateRange;
   });
@@ -89,9 +95,10 @@ export const SalesHistory: React.FC = () => {
 
     try {
       await createInvoice(clonedInvoice);
-      alert('Factura clonada como borrador exitosamente');
+      showSuccess('Factura clonada como borrador exitosamente');
     } catch (error) {
       console.error('Error al clonar factura:', error);
+      showError('Error al clonar factura');
     }
   };
 
@@ -124,6 +131,23 @@ export const SalesHistory: React.FC = () => {
     a.click();
     window.URL.revokeObjectURL(url);
   };
+
+  const handleDateChange = (type: 'from' | 'to', value: string) => {
+    if (type === 'from') {
+      if (dateTo && value > dateTo) {
+        showError('La fecha de inicio no puede ser mayor que la fecha final');
+        return;
+      }
+      setDateFrom(value);
+    } else {
+      if (dateFrom && value < dateFrom) {
+        showError('La fecha final no puede ser menor que la fecha de inicio');
+        return;
+      }
+      setDateTo(value);
+    }
+  };
+
 
   const handleQuickDateFilter = (months: number) => {
     const endDate = new Date();
@@ -298,14 +322,14 @@ export const SalesHistory: React.FC = () => {
           <input
             type="date"
             value={dateFrom}
-            onChange={(e) => setDateFrom(e.target.value)}
+            onChange={(e) => handleDateChange('from', e.target.value)}
             className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           />
 
           <input
             type="date"
             value={dateTo}
-            onChange={(e) => setDateTo(e.target.value)}
+            onChange={(e) => handleDateChange('to', e.target.value)}
             className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           />
 

@@ -4,6 +4,7 @@ import { Plus, Search, Edit, Trash2, Eye, UserCheck, UserX } from 'lucide-react'
 import { useClientStore } from '../stores/clientStore';
 import { useAuthStore } from '../stores/authStore';
 import { hasPermission } from '../config/permissions';
+import { showError, showSuccess } from '../lib/toast';
 import { Button } from '../components/common/Button';
 import { Input } from '../components/common/Input';
 import { DataTable } from '../components/common/DataTable';
@@ -34,6 +35,7 @@ export const Clients: React.FC = () => {
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [viewingClient, setViewingClient] = useState<Client | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [formError, setFormError] = useState<string | null>(null);
   const itemsPerPage = 10;
 
   const canCreate = user && hasPermission(user.role, 'clientes', 'create');
@@ -102,25 +104,39 @@ export const Clients: React.FC = () => {
 
   const onSubmit = async (data: ClientForm) => {
     try {
+      setFormError(null);
       if (editingClient) {
         await updateClient(editingClient.id, data);
+        showSuccess('Cliente actualizado exitosamente');
       } else {
         const creds = await createClient(data);
         if (creds) setCreatedPassword(creds);
+        showSuccess('Cliente creado exitosamente');
       }
       handleCloseModal();
-    } catch (error) {
-      console.error('Error al guardar cliente:', error);
+    } catch (error: any) {
+      setFormError(error.message || 'Error al guardar cliente');
+      // NO cerrar modal aquí
     }
   };
 
   const handleToggleStatus = async (client: Client) => {
-    await updateClient(client.id, { isActive: !client.isActive });
+    try {
+      await updateClient(client.id, { isActive: !client.isActive });
+      showSuccess(`Cliente ${!client.isActive ? 'activado' : 'desactivado'} exitosamente`);
+    } catch (error: any) {
+      showError('Error al cambiar estado del cliente');
+    }
   };
 
   const handleDelete = async (client: Client) => {
-    if (window.confirm(`¿Está seguro de eliminar el cliente "${client.name}"?`)) {
-      await deleteClient(client.id);
+    if (window.confirm(`⚠️ ATENCIÓN: ¿Está seguro de ELIMINAR PERMANENTEMENTE el cliente "${client.name}"?\n\nEsta acción NO eliminará sus facturas asociadas (sistema auditable), pero el cliente no podrá acceder al portal.\n\n¿Continuar?`)) {
+      try {
+        await deleteClient(client.id);
+        showSuccess('Cliente eliminado exitosamente');
+      } catch (error: any) {
+        showError('Error al eliminar cliente');
+      }
     }
   };
 
@@ -185,13 +201,6 @@ export const Clients: React.FC = () => {
                 title="Editar"
               >
                 <Edit size={16} />
-              </button>
-              <button
-                onClick={() => handleToggleStatus(client)}
-                className={client.isActive ? 'text-orange-600 hover:text-orange-800' : 'text-green-600 hover:text-green-800'}
-                title={client.isActive ? 'Desactivar' : 'Activar'}
-              >
-                {client.isActive ? <UserX size={16} /> : <UserCheck size={16} />}
               </button>
             </>
           )}
@@ -269,6 +278,12 @@ export const Clients: React.FC = () => {
         size="lg"
       >
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          {formError && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
+              <p className="text-sm">{formError}</p>
+            </div>
+          )}
+          
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input
               label="Nombre/Razón Social"

@@ -25,12 +25,12 @@ export const env = {
   jwtRefreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || "7d",
   corsOrigin: process.env.CORS_ORIGIN || "*",
   rateLimitWindowMs: parseNumber(process.env.RATE_LIMIT_WINDOW_MS, 15 * 60 * 1000),
-  rateLimitMax: parseNumber(process.env.RATE_LIMIT_MAX, 200),
+  rateLimitMax: parseNumber(process.env.RATE_LIMIT_MAX, 5000),
   // Configuración para rate limiting de login
   loginRateLimitWindowMs: parseNumber(process.env.LOGIN_RATE_LIMIT_WINDOW_MS, 15 * 60 * 1000),
-  loginRateLimitMax: parseNumber(process.env.LOGIN_RATE_LIMIT_MAX, 5),
+  loginRateLimitMax: parseNumber(process.env.LOGIN_RATE_LIMIT_MAX, 200),
   // Número máximo de intentos de login fallidos antes de bloqueo temporal
-  maxLoginAttempts: parseNumber(process.env.MAX_LOGIN_ATTEMPTS, 5),
+  maxLoginAttempts: parseNumber(process.env.MAX_LOGIN_ATTEMPTS, 20),
   loginLockoutDuration: parseNumber(process.env.LOGIN_LOCKOUT_DURATION, 15 * 60 * 1000),
   // Configuración de sesión
   sessionTimeout: parseNumber(process.env.SESSION_TIMEOUT, 30 * 60 * 1000), // 30 minutos
@@ -39,7 +39,7 @@ export const env = {
   smtpPort: parseNumber(process.env.SMTP_PORT, 587),
   smtpUser: process.env.SMTP_USER || "",
   smtpPass: process.env.SMTP_PASS || "",
-  smtpFrom: process.env.SMTP_FROM || "Adventure Works <00086221@uca.edu.sv>",
+  smtpFrom: process.env.SMTP_FROM || "EleCtroZ <noreply@electroz.com>",
 };
 
 

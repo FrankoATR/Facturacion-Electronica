@@ -22,6 +22,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar, title = 'Dashbo
     // Polling cada 30 segundos para actualizar contador
     const interval = setInterval(() => {
       fetchUnreadCount();
+      fetchNotifications(); // Agregar esta línea
     }, 30000);
 
     return () => clearInterval(interval);

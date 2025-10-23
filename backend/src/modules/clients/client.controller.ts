@@ -19,7 +19,17 @@ export const clientController = {
       const result = await prisma.$transaction(async (tx) => {
         const created = await tx.client.create({ data: parsed.data as any });
         const pwd = Math.random().toString(36).slice(-10);
-        const email = (created.email ?? `${created.taxId}@example.com`).toLowerCase();
+        let email = (created.email ?? `${created.taxId}@example.com`).toLowerCase();
+        
+        // Verificar si el email ya existe y generar uno único si es necesario
+        let counter = 1;
+        let finalEmail = email;
+        while (await tx.user.findUnique({ where: { email: finalEmail } })) {
+          finalEmail = `${created.taxId}-${counter}@example.com`;
+          counter++;
+        }
+        email = finalEmail;
+        
         const user = await tx.user.create({
           data: {
             email,

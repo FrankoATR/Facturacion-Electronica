@@ -17,6 +17,7 @@ import { useClientStore } from '../stores/clientStore';
 import { useProductStore } from '../stores/productStore';
 import { apiFetch } from '../lib/api';
 import { hasPermission } from '../config/permissions';
+import { showError, showSuccess } from '../lib/toast';
 
 export const Dashboard: React.FC = () => {
   const { user } = useAuthStore();
@@ -60,9 +61,10 @@ export const Dashboard: React.FC = () => {
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
+      showSuccess('Backup descargado exitosamente');
     } catch (error) {
       console.error('Error downloading backup:', error);
-      alert('Error al descargar backup');
+      showError('Error al descargar backup');
     } finally {
       setDownloading(false);
     }

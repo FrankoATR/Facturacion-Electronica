@@ -13,12 +13,19 @@ export const invoiceController = {
   },
   async create(req: Request, res: Response) {
     const parsed = CreateInvoiceDto.safeParse(req.body);
-    if (!parsed.success) return res.status(400).json({ message: "Invalid" });
+    if (!parsed.success) {
+      console.error('Validation error:', parsed.error);
+      return res.status(400).json({ 
+        message: "Datos de factura inválidos", 
+        errors: parsed.error.errors 
+      });
+    }
     try {
       const created = await invoiceService.create(req.user?.id, parsed.data);
       res.status(201).json({ data: created });
     } catch (e: any) {
-      res.status(400).json({ message: e.message ?? "Invalid" });
+      console.error('Invoice creation error:', e);
+      res.status(400).json({ message: e.message ?? "Error al crear factura" });
     }
   },
   async issue(req: Request, res: Response) {
