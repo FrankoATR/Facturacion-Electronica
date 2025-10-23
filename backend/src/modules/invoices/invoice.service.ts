@@ -5,6 +5,8 @@ import { mapInvoiceNumbers } from "../../common/serialization";
 import { appendAuditLog } from "../../common/audit";
 import { notificationService } from "../notifications/notification.service";
 import { stockAlertService } from "../inventory/stock-alert.service";
+import { emailService } from "../email/email.service";
+import { env } from "../../config/env";
 
 function calcTotals(items: CreateInvoiceInput["items"]) {
   // Calcular subtotal considerando descuentos
@@ -123,6 +125,41 @@ export const invoiceService = {
       `Factura ${created.number} emitida por $${total.toFixed(2)}`,
       { invoiceId: created.id, invoiceNumber: created.number, total }
     );
+
+    // Enviar correo automáticamente solo para facturas electrónicas
+    if (input.type === "ELECTRONIC" && env.smtpUser) {
+      try {
+        // Obtener información del cliente
+        const client = await prisma.client.findUnique({ where: { id: input.clientId } });
+        const clientName = client?.name || 'Cliente';
+        
+        // Para pruebas, enviar al mismo email configurado en SMTP_USER
+        const emailToSend = env.smtpUser;
+        
+        console.log(`[INVOICE] Enviando factura electrónica ${created.number} por email a ${emailToSend}`);
+        
+        // Crear un PDF simple (mock) para el adjunto
+        const mockPdfContent = `Factura Electrónica ${created.number}\nCliente: ${clientName}\nTotal: $${total.toFixed(2)}\nFecha: ${new Date().toLocaleDateString()}\nTipo: Electrónica`;
+        const pdfBuffer = Buffer.from(mockPdfContent, 'utf-8');
+        
+        await emailService.sendInvoiceEmail(
+          emailToSend,
+          created.number,
+          clientName,
+          total,
+          pdfBuffer
+        );
+        
+        console.log(`[INVOICE] ✅ Correo enviado exitosamente para factura electrónica ${created.number}`);
+      } catch (emailError: any) {
+        console.error(`[INVOICE] ❌ Error al enviar correo para factura electrónica ${created.number}:`, emailError.message);
+        // No fallar la creación de factura si el email falla
+      }
+    } else if (input.type === "TRADITIONAL") {
+      console.log(`[INVOICE] ℹ️ Factura tradicional ${created.number} - no se enviará correo (solo facturas electrónicas)`);
+    } else if (!env.smtpUser) {
+      console.log(`[INVOICE] ⚠️ SMTP no configurado - no se enviará correo para factura ${created.number}`);
+    }
 
     return mapInvoiceNumbers(created);
   },

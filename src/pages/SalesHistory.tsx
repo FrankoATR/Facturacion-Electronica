@@ -1,6 +1,6 @@
 // TODO: validar vs PDF - Módulo de Historial de Ventas
 import React, { useEffect, useState } from 'react';
-import { Search, Filter, Eye, Copy, Calendar, Download } from 'lucide-react';
+import { Search, Filter, Eye, Calendar, Download } from 'lucide-react';
 import { useInvoiceStore } from '../stores/invoiceStore';
 import { useClientStore } from '../stores/clientStore';
 import { useAuthStore } from '../stores/authStore';
@@ -83,24 +83,6 @@ export const SalesHistory: React.FC = () => {
     setIsViewModalOpen(true);
   };
 
-  const handleCloneInvoice = async (invoice: Invoice) => {
-    if (!canCreate) return;
-
-    const clonedInvoice = {
-      ...invoice,
-      status: 'borrador' as const,
-      number: 'BORRADOR',
-      issuedAt: undefined
-    };
-
-    try {
-      await createInvoice(clonedInvoice);
-      showSuccess('Factura clonada como borrador exitosamente');
-    } catch (error) {
-      console.error('Error al clonar factura:', error);
-      showError('Error al clonar factura');
-    }
-  };
 
   const handleExportCSV = () => {
     const csvData = filteredInvoices.map(invoice => {
@@ -221,15 +203,6 @@ export const SalesHistory: React.FC = () => {
           >
             <Eye size={16} />
           </button>
-          {canCreate && (
-            <button
-              onClick={() => handleCloneInvoice(invoice)}
-              className="text-purple-600 hover:text-purple-800"
-              title="Clonar como borrador"
-            >
-              <Copy size={16} />
-            </button>
-          )}
         </div>
       )
     }
@@ -458,12 +431,6 @@ export const SalesHistory: React.FC = () => {
               >
                 Descargar PDF
               </a>
-              {canCreate && (
-                <Button onClick={() => handleCloneInvoice(viewingInvoice)}>
-                  <Copy size={16} className="mr-2" />
-                  Clonar como Borrador
-                </Button>
-              )}
             </div>
           </div>
         )}

@@ -14,15 +14,16 @@ const initTransporter = () => {
     transporter = nodemailer.createTransport({
       host: env.smtpHost,
       port: env.smtpPort,
-      secure: false, // true para 465, false para otros puertos
-      requireTLS: true, // Esto es clave para Office365
+      secure: env.smtpPort === 465, // true para 465 (SSL), false para 587 (TLS)
+      requireTLS: env.smtpPort === 587, // TLS para puerto 587
       auth: {
         user: env.smtpUser,
         pass: env.smtpPass,
       },
       tls: {
-        ciphers: 'SSLv3',
+        // Configuración TLS mejorada
         rejectUnauthorized: false, // Solo para desarrollo
+        minVersion: 'TLSv1.2',
       },
       connectionTimeout: 60000, // 60 segundos
       greetingTimeout: 30000, // 30 segundos
@@ -30,6 +31,8 @@ const initTransporter = () => {
       pool: true, // Usar pool de conexiones
       maxConnections: 5,
       maxMessages: 100,
+      debug: env.nodeEnv === 'development', // Debug en desarrollo
+      logger: env.nodeEnv === 'development', // Logs en desarrollo
     });
 
     // Verificar la conexión SMTP (sin bloquear inicio)
@@ -181,9 +184,9 @@ export const emailService = {
           <p>Sistema de Facturación Electrónica</p>
         </div>
         
-        <div class="content">
-          <h2>Estimado/a ${clientName},</h2>
-          <p>Le enviamos su factura electrónica generada en nuestro sistema.</p>
+          <div class="content">
+            <h2>Estimado/a ${clientName},</h2>
+            <p>Le enviamos su <strong>factura electrónica</strong> generada en nuestro sistema.</p>
           
           <div class="info-box">
             <div class="info-row">

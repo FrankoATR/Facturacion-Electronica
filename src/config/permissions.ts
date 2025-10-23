@@ -10,7 +10,6 @@ export const ROLE_PERMISSIONS: RolePermissions = {
     { module: 'historial', actions: ['read', 'create', 'update', 'delete'] },
     { module: 'reportes', actions: ['read'] },
     { module: 'auditoria', actions: ['read'] },
-    { module: 'portal', actions: ['read'] },
     { module: 'usuarios', actions: ['read', 'create', 'update', 'delete'] }
   ],
   SELLER: [
@@ -29,16 +28,28 @@ export const ROLE_PERMISSIONS: RolePermissions = {
     { module: 'auditoria', actions: ['read'] }
   ],
   CUSTOMER: [
-    { module: 'portal', actions: ['read'] }
+    { module: 'dashboard', actions: ['read'] }
   ]
 };
 
+// Mapear roles frontend -> backend
+const roleMapping: Record<string, keyof typeof ROLE_PERMISSIONS> = {
+  'administrador': 'ADMIN',
+  'vendedor': 'SELLER',
+  'contador': 'ACCOUNTANT',
+  'auditor': 'AUDITOR',
+  'cliente': 'CUSTOMER'
+};
+
 export function hasPermission(
-  userRole: 'ADMIN' | 'SELLER' | 'ACCOUNTANT' | 'AUDITOR' | 'CUSTOMER',
+  userRole: 'administrador' | 'vendedor' | 'contador' | 'auditor' | 'cliente',
   module: string,
   action: string
 ): boolean {
-  const permissions = ROLE_PERMISSIONS[userRole];
+  const backendRole = roleMapping[userRole];
+  if (!backendRole) return false;
+  
+  const permissions = ROLE_PERMISSIONS[backendRole];
   const modulePermission = permissions.find(p => p.module === module);
   return modulePermission?.actions.includes(action as any) || false;
 }

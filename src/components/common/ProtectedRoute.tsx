@@ -23,7 +23,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     vendedor: '/dashboard',
     contador: '/reportes',
     auditor: '/auditoria',
-    cliente: '/portal'
+    cliente: '/dashboard'
   };
 
   if (!isAuthenticated) {

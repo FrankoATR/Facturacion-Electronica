@@ -77,8 +77,16 @@ export const useAuthStore = create<AuthState>()(
         if (user) {
           console.log(`[AUTH] Usuario desconectado: ${user.name}`);
         }
+        
+        // Limpiar completamente el localStorage
         localStorage.removeItem('auth-token');
+        localStorage.removeItem('auth-storage');
+        
+        // Limpiar el estado
         set({ user: null, isAuthenticated: false, token: null });
+        
+        // Forzar recarga de la página para limpiar cualquier estado residual
+        window.location.href = '/login';
       },
 
       checkPermission: (module: string, action: string) => {

@@ -38,7 +38,6 @@ const navItems: NavItem[] = [
   { to: '/usuarios', icon: UserCog, label: 'Gestión de Usuarios', module: 'usuarios', action: 'read' },
   { to: '/reportes', icon: FileBarChart2, label: 'Reporte IVA', module: 'reportes', action: 'read' },
   { to: '/auditoria', icon: ShieldQuestion, label: 'Bitácora', module: 'auditoria', action: 'read' },
-  { to: '/portal', icon: FileText, label: 'Portal Cliente', module: 'portal', action: 'read' },
   { to: '/test-smtp', icon: Mail, label: 'Prueba SMTP', module: 'dashboard', action: 'read' }
 ];
 

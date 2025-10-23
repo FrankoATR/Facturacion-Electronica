@@ -1,6 +1,7 @@
 import { prisma } from "../../config/prisma";
 import { emailService } from "../email/email.service";
 import { notificationService } from "../notifications/notification.service";
+import { env } from "../../config/env";
 
 export const stockAlertService = {
   async checkLowStock() {
@@ -28,7 +29,7 @@ export const stockAlertService = {
 
     console.log(`⚠️  ${lowStockProducts.length} producto(s) con stock bajo detectado(s)`);
 
-    // Obtener todos los administradores
+    // Obtener todos los administradores para notificaciones internas
     const admins = await prisma.user.findMany({
       where: {
         role: "ADMIN",
@@ -41,7 +42,7 @@ export const stockAlertService = {
       },
     });
 
-    // Crear notificaciones para cada admin
+    // Crear notificaciones internas para cada admin
     for (const admin of admins) {
       // Crear notificación en el sistema para cada producto
       for (const product of lowStockProducts) {
@@ -53,26 +54,31 @@ export const stockAlertService = {
       }
     }
 
-    // Enviar un único correo con todos los productos con stock bajo
-    for (const admin of admins) {
+    // Enviar correo solo al SMTP_USER configurado (para pruebas)
+    if (env.smtpUser) {
       try {
+        console.log(`[STOCK_ALERT] Enviando alerta de stock bajo a ${env.smtpUser}`);
+        
         await emailService.sendStockAlertEmail(
-          admin.email,
+          env.smtpUser,
           lowStockProducts.map(p => ({
             sku: p.sku,
             name: p.name,
             stock: p.stock,
           }))
         );
-        console.log(`✅ Correo de alerta enviado a ${admin.email}`);
+        
+        console.log(`✅ Correo de alerta de stock enviado exitosamente a ${env.smtpUser}`);
       } catch (error) {
-        console.error(`❌ Error al enviar correo a ${admin.email}:`, error);
+        console.error(`❌ Error al enviar correo de alerta de stock a ${env.smtpUser}:`, error);
       }
+    } else {
+      console.log(`⚠️ SMTP no configurado - no se enviará correo de alerta de stock`);
     }
 
     return {
       lowStockProducts,
-      notificationsSent: admins.length,
+      notificationsSent: env.smtpUser ? 1 : 0, // Solo se envía un correo al SMTP_USER
     };
   },
 
@@ -96,7 +102,7 @@ export const stockAlertService = {
 
     // Si el stock está por debajo o igual al umbral
     if (product.stock <= product.lowStockThreshold) {
-      // Notificar a todos los administradores
+      // Notificar a todos los administradores (notificaciones internas)
       await notificationService.notifyAdmins(
         "STOCK_LOW",
         "Stock Bajo",
@@ -109,6 +115,26 @@ export const stockAlertService = {
           threshold: product.lowStockThreshold,
         }
       );
+
+      // Enviar correo de alerta individual al SMTP_USER (para pruebas)
+      if (env.smtpUser) {
+        try {
+          console.log(`[STOCK_ALERT] Enviando alerta individual de stock bajo para ${product.name} a ${env.smtpUser}`);
+          
+          await emailService.sendStockAlertEmail(
+            env.smtpUser,
+            [{
+              sku: product.sku,
+              name: product.name,
+              stock: product.stock,
+            }]
+          );
+          
+          console.log(`✅ Correo de alerta individual enviado para ${product.name}`);
+        } catch (error) {
+          console.error(`❌ Error al enviar correo de alerta individual para ${product.name}:`, error);
+        }
+      }
 
       console.log(`⚠️  Alerta: ${product.name} tiene stock bajo (${product.stock} unidades)`);
     }

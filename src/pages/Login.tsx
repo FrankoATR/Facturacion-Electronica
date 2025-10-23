@@ -6,6 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { LogIn, Eye, EyeOff } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
+import logoImage from '../assets/image.png';
 
 const loginSchema = z.object({
   email: z.string().email('Ingrese un email válido').min(1, 'Email es requerido'),
@@ -17,8 +18,15 @@ type LoginForm = z.infer<typeof loginSchema>;
 export const Login: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
-  const { login, isAuthenticated } = useAuthStore();
+  const { login, isAuthenticated, logout } = useAuthStore();
   const location = useLocation();
+
+  // Función para limpiar sesión de emergencia
+  const clearSession = () => {
+    localStorage.clear();
+    sessionStorage.clear();
+    logout();
+  };
 
   const from = location.state?.from?.pathname || '/dashboard';
 
@@ -56,7 +64,7 @@ export const Login: React.FC = () => {
       <div className="max-w-md w-full space-y-8">
         <div className="bg-white rounded-lg shadow-lg p-8">
           <div className="text-center">
-            <img src="/image.png" alt="EleCtroZ" className="mx-auto h-20 w-auto object-contain" />
+            <img src={logoImage} alt="EleCtroZ" className="mx-auto h-20 w-auto object-contain" />
             <h2 className="mt-6 text-3xl font-bold text-gray-900">
               Iniciar Sesión
             </h2>
@@ -125,6 +133,17 @@ export const Login: React.FC = () => {
               {isSubmitting ? 'Iniciando sesión...' : 'Iniciar Sesión'}
             </button>
           </form>
+
+          {/* Botón de emergencia para limpiar sesión */}
+          <div className="mt-6 text-center">
+            <button
+              type="button"
+              onClick={clearSession}
+              className="text-sm text-gray-500 hover:text-gray-700 underline"
+            >
+              ¿Problemas para iniciar sesión? Limpiar sesión
+            </button>
+          </div>
 
         </div>
       </div>

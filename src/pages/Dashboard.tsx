@@ -26,6 +26,15 @@ export const Dashboard: React.FC = () => {
   const [metrics, setMetrics] = useState<{ users?: number; clients?: number; products?: number; invoices?: number; salesToday?: number }>({});
   const [downloading, setDownloading] = useState(false);
 
+  // Debug logs
+  console.log('[DASHBOARD] Usuario actual:', user);
+  console.log('[DASHBOARD] Rol del usuario:', user?.role);
+  
+  if (!user) {
+    console.error('[DASHBOARD] No hay usuario autenticado');
+    return <div>Cargando...</div>;
+  }
+
   useEffect(() => {
     fetchClients();
     fetchProducts();

@@ -13,7 +13,6 @@ import { Invoicing } from './pages/Invoicing';
 import { SalesHistory } from './pages/SalesHistory';
 import { Reports } from './pages/Reports';
 import { AuditLog } from './pages/AuditLog';
-import { ClientPortal } from './pages/ClientPortal';
 import { Users } from './pages/Users';
 import { TestSMTP } from './pages/TestSMTP';
 
@@ -26,7 +25,7 @@ export default function App() {
     vendedor: '/dashboard',
     contador: '/reportes',
     auditor: '/auditoria',
-    cliente: '/portal'
+    cliente: '/dashboard' // Los clientes ya no tienen portal especial
   };
 
   const initial = user ? roleHome[user.role] ?? '/dashboard' : '/login';
@@ -102,14 +101,6 @@ export default function App() {
             element={
               <ProtectedRoute requiredModule="auditoria">
                 <AuditLog />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="portal/*" 
-            element={
-              <ProtectedRoute requiredModule="portal">
-                <ClientPortal />
               </ProtectedRoute>
             } 
           />

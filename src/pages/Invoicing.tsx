@@ -10,6 +10,7 @@ import { Button } from '../components/common/Button';
 import { Input } from '../components/common/Input';
 import { DataTable } from '../components/common/DataTable';
 import { Modal } from '../components/common/Modal';
+import { ClientAutocomplete } from '../components/common/ClientAutocomplete';
 import { Invoice, InvoiceItem, Client, Product } from '../types';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -40,6 +41,7 @@ export const Invoicing: React.FC = () => {
   const [itemQuantity, setItemQuantity] = useState<number>(1);
   const [itemDiscount, setItemDiscount] = useState<number>(0);
   const [currentPage, setCurrentPage] = useState(1);
+  const [selectedClientId, setSelectedClientId] = useState<string>('');
   const itemsPerPage = 10;
 
   const canCreate = user && hasPermission(user.role, 'facturacion', 'create');
@@ -50,6 +52,7 @@ export const Invoicing: React.FC = () => {
     handleSubmit,
     reset,
     watch,
+    setValue,
     formState: { errors, isSubmitting }
   } = useForm<InvoiceForm>({
     resolver: zodResolver(invoiceSchema),
@@ -59,13 +62,29 @@ export const Invoicing: React.FC = () => {
     }
   });
 
-  const selectedClientId = watch('clientId');
+  const watchedClientId = watch('clientId');
 
   useEffect(() => {
     fetchInvoices();
     fetchClients();
     fetchProducts();
   }, [fetchInvoices, fetchClients, fetchProducts]);
+
+  // Resetear cantidad cuando se cambie de producto
+  useEffect(() => {
+    if (selectedProduct) {
+      const product = products.find(p => p.id === selectedProduct);
+      const alreadyAddedQuantity = currentInvoice?.items
+        .filter(item => item.productId === selectedProduct)
+        .reduce((total, item) => total + item.quantity, 0) || 0;
+      const maxQuantity = product ? product.stock - alreadyAddedQuantity : 1;
+      
+      // Si la cantidad actual excede el máximo disponible, resetear a 1 o al máximo
+      if (itemQuantity > maxQuantity) {
+        setItemQuantity(Math.max(1, Math.min(maxQuantity, 1)));
+      }
+    }
+  }, [selectedProduct, currentInvoice?.items, products, itemQuantity]);
 
   // Filtrar facturas
   const filteredInvoices = invoices.filter(invoice => {
@@ -108,6 +127,7 @@ export const Invoicing: React.FC = () => {
   const handleCloseCreateModal = () => {
     setIsCreateModalOpen(false);
     setCurrentInvoice(null);
+    setSelectedClientId('');
     reset();
   };
 
@@ -117,9 +137,20 @@ export const Invoicing: React.FC = () => {
     const product = products.find(p => p.id === selectedProduct);
     if (!product) return;
 
-    // SSDLC Touchpoint: Validación de negocio - stock suficiente
-    if (product.stock < itemQuantity) {
-      showError('Stock insuficiente');
+    // Calcular cantidad ya agregada de este producto en la factura actual
+    const alreadyAddedQuantity = currentInvoice.items
+      .filter(item => item.productId === selectedProduct)
+      .reduce((total, item) => total + item.quantity, 0);
+
+    // SSDLC Touchpoint: Validación de negocio - stock suficiente considerando items ya agregados
+    const totalQuantityNeeded = alreadyAddedQuantity + itemQuantity;
+    if (totalQuantityNeeded > product.stock) {
+      const availableQuantity = product.stock - alreadyAddedQuantity;
+      if (availableQuantity <= 0) {
+        showError(`No hay stock disponible para ${product.name}. Ya se agregaron ${alreadyAddedQuantity} unidades.`);
+      } else {
+        showError(`Stock insuficiente para ${product.name}. Disponible: ${availableQuantity} unidades (ya agregadas: ${alreadyAddedQuantity})`);
+      }
       return;
     }
 
@@ -155,6 +186,16 @@ export const Invoicing: React.FC = () => {
 
   const handleRemoveItem = (itemId: string) => {
     removeItemFromCurrentInvoice(itemId);
+  };
+
+  const handleClientSelect = (clientId: string) => {
+    setSelectedClientId(clientId);
+    // También actualizar el formulario
+    if (clientId) {
+      setValue('clientId', clientId);
+    } else {
+      setValue('clientId', '');
+    }
   };
 
   const onSubmit = async (data: InvoiceForm) => {
@@ -330,21 +371,14 @@ export const Invoicing: React.FC = () => {
           {/* Invoice Header */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700">Cliente</label>
-              <select
-                {...register('clientId')}
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="">Seleccionar cliente</option>
-                {clients.map(client => (
-                  <option key={client.id} value={client.id}>
-                    {client.taxId} - {client.name}
-                  </option>
-                ))}
-              </select>
-              {errors.clientId && (
-                <p className="mt-1 text-sm text-red-600">{errors.clientId.message}</p>
-              )}
+              <label className="block text-sm font-medium text-gray-700 mb-1">Cliente</label>
+              <ClientAutocomplete
+                clients={clients}
+                selectedClientId={selectedClientId}
+                onClientSelect={handleClientSelect}
+                placeholder="Buscar por identificador fiscal..."
+                error={errors.clientId?.message}
+              />
             </div>
 
             <div>
@@ -385,23 +419,49 @@ export const Invoicing: React.FC = () => {
                   className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="">Seleccionar producto</option>
-                  {products.filter(p => p.isActive && p.stock > 0).map(product => (
-                    <option key={product.id} value={product.id}>
-                      {product.name} - ${product.unitPrice} (Stock: {product.stock})
-                    </option>
-                  ))}
+                  {products.filter(p => p.isActive && p.stock > 0).map(product => {
+                    // Calcular stock disponible considerando items ya agregados
+                    const alreadyAddedQuantity = currentInvoice?.items
+                      .filter(item => item.productId === product.id)
+                      .reduce((total, item) => total + item.quantity, 0) || 0;
+                    const availableStock = product.stock - alreadyAddedQuantity;
+                    
+                    return (
+                      <option key={product.id} value={product.id} disabled={availableStock <= 0}>
+                        {product.name} - ${product.unitPrice} (Disponible: {availableStock})
+                        {alreadyAddedQuantity > 0 && ` [Ya agregadas: ${alreadyAddedQuantity}]`}
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
               
               <div>
                 <label className="block text-sm font-medium text-gray-700">Cantidad</label>
-                <input
-                  type="number"
-                  min="1"
-                  value={itemQuantity}
-                  onChange={(e) => setItemQuantity(Number(e.target.value))}
-                  className="mt-1 block w-20 px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                />
+                {(() => {
+                  const product = products.find(p => p.id === selectedProduct);
+                  const alreadyAddedQuantity = currentInvoice?.items
+                    .filter(item => item.productId === selectedProduct)
+                    .reduce((total, item) => total + item.quantity, 0) || 0;
+                  const maxQuantity = product ? product.stock - alreadyAddedQuantity : 1;
+                  
+                  return (
+                    <input
+                      type="number"
+                      min="1"
+                      max={maxQuantity > 0 ? maxQuantity : 1}
+                      value={itemQuantity}
+                      onChange={(e) => {
+                        const value = Number(e.target.value);
+                        if (value <= maxQuantity) {
+                          setItemQuantity(value);
+                        }
+                      }}
+                      className="mt-1 block w-20 px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                      disabled={!selectedProduct || maxQuantity <= 0}
+                    />
+                  );
+                })()}
               </div>
               
               <div>

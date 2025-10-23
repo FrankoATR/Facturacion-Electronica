@@ -12,7 +12,7 @@ export const Unauthorized: React.FC = () => {
     vendedor: '/dashboard',
     contador: '/reportes',
     auditor: '/auditoria',
-    cliente: '/portal'
+    cliente: '/dashboard'
   };
 
   const homePath = user ? roleHome[user.role] ?? '/dashboard' : '/login';

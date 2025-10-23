@@ -103,7 +103,8 @@ testSmtpRouter.get("/smtp-status", authenticate, authorize(["ADMIN"]), async (re
     const smtpConfig = {
       host: process.env.SMTP_HOST || "smtp.office365.com",
       port: process.env.SMTP_PORT || 587,
-      user: process.env.SMTP_USER ? "***@***.***" : "No configurado",
+      user: process.env.SMTP_USER || "No configurado",
+      userMasked: process.env.SMTP_USER ? "***@***.***" : "No configurado",
       from: process.env.SMTP_FROM || "EleCtroZ <noreply@electroz.com>",
       configured: !!(process.env.SMTP_USER && process.env.SMTP_PASS)
     };

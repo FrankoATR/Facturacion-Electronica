@@ -19,6 +19,11 @@ export const TestSMTP: React.FC = () => {
     try {
       const response = await apiFetch('/admin/smtp-status');
       setSmtpStatus(response);
+      
+      // Auto-llenar el email con el SMTP_USER si está configurado
+      if (response.config && response.config.configured && !email && response.config.user !== "No configurado") {
+        setEmail(response.config.user);
+      }
     } catch (error) {
       console.error('Error al verificar estado SMTP:', error);
       showError('Error al verificar estado SMTP');
@@ -35,7 +40,7 @@ export const TestSMTP: React.FC = () => {
     try {
       const response = await apiFetch('/admin/test-smtp', {
         method: 'POST',
-        body: JSON.stringify({ email }),
+        body: { email }, // Cambiar: no usar JSON.stringify aquí
       });
 
       if (response.success) {
@@ -106,7 +111,7 @@ export const TestSMTP: React.FC = () => {
               </div>
               <div>
                 <span className="font-medium text-gray-700">Usuario:</span>
-                <span className="ml-2 text-gray-600">{smtpStatus.config.user}</span>
+                <span className="ml-2 text-gray-600">{smtpStatus.config.userMasked}</span>
               </div>
               <div>
                 <span className="font-medium text-gray-700">From:</span>
@@ -144,6 +149,16 @@ export const TestSMTP: React.FC = () => {
               <Send size={16} className="mr-2" />
               Enviar Correo de Prueba
             </Button>
+            
+            {smtpStatus?.config?.configured && smtpStatus.config.user !== "No configurado" && (
+              <Button
+                onClick={() => setEmail(smtpStatus.config.user)}
+                variant="secondary"
+                disabled={loading}
+              >
+                Usar Email SMTP
+              </Button>
+            )}
           </div>
 
           <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
