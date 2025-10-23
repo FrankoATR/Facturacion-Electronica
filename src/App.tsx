@@ -15,6 +15,7 @@ import { Reports } from './pages/Reports';
 import { AuditLog } from './pages/AuditLog';
 import { ClientPortal } from './pages/ClientPortal';
 import { Users } from './pages/Users';
+import { TestSMTP } from './pages/TestSMTP';
 
 export default function App() {
   const { user } = useAuthStore();
@@ -117,6 +118,14 @@ export default function App() {
             element={
               <ProtectedRoute requiredModule="dashboard">
                 <Users />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="test-smtp/*" 
+            element={
+              <ProtectedRoute requiredModule="dashboard">
+                <TestSMTP />
               </ProtectedRoute>
             } 
           />

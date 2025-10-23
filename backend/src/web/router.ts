@@ -13,6 +13,7 @@ import { auditRouter } from "./routes/audit";
 import { portalRouter } from "./routes/portal";
 import { backupRouter } from "./routes/backup";
 import { notificationsRouter } from "./routes/notifications";
+import { testSmtpRouter } from "./routes/test-smtp";
 
 export const router = Router();
 
@@ -30,5 +31,6 @@ router.use("/audit", auditRouter);
 router.use("/portal", portalRouter);
 router.use("/admin", backupRouter);
 router.use("/notifications", notificationsRouter);
+router.use("/admin", testSmtpRouter);
 
 

@@ -27,6 +27,9 @@ const initTransporter = () => {
       connectionTimeout: 60000, // 60 segundos
       greetingTimeout: 30000, // 30 segundos
       socketTimeout: 60000, // 60 segundos
+      pool: true, // Usar pool de conexiones
+      maxConnections: 5,
+      maxMessages: 100,
     });
 
     // Verificar la conexión SMTP (sin bloquear inicio)
@@ -89,7 +92,7 @@ export const emailService = {
     total: number,
     pdfBuffer: Buffer
   ) {
-    const subject = `Factura Electrónica ${invoiceNumber} - Adventure Works`;
+    const subject = `Factura Electrónica ${invoiceNumber} - EleCtroZ`;
     
     const html = `
       <!DOCTYPE html>
@@ -106,7 +109,7 @@ export const emailService = {
             padding: 20px;
           }
           .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
             color: white;
             padding: 30px;
             text-align: center;
@@ -126,7 +129,7 @@ export const emailService = {
             padding: 20px;
             border-radius: 8px;
             margin: 20px 0;
-            border-left: 4px solid #667eea;
+            border-left: 4px solid #ff6b35;
           }
           .info-row {
             display: flex;
@@ -146,7 +149,7 @@ export const emailService = {
           }
           .total {
             font-size: 24px;
-            color: #667eea;
+            color: #ff6b35;
             font-weight: bold;
           }
           .footer {
@@ -158,13 +161,13 @@ export const emailService = {
             font-size: 12px;
           }
           .footer a {
-            color: #667eea;
+            color: #ff6b35;
             text-decoration: none;
           }
           .button {
             display: inline-block;
             padding: 12px 30px;
-            background: #667eea;
+            background: #ff6b35;
             color: white;
             text-decoration: none;
             border-radius: 5px;
@@ -174,7 +177,7 @@ export const emailService = {
       </head>
       <body>
         <div class="header">
-          <h1>🏪 Adventure Works</h1>
+          <h1>🏪 EleCtroZ</h1>
           <p>Sistema de Facturación Electrónica</p>
         </div>
         
@@ -210,7 +213,7 @@ export const emailService = {
         </div>
         
         <div class="footer">
-          <p><strong>Adventure Works</strong></p>
+          <p><strong>EleCtroZ</strong></p>
           <p>Sistema de Facturación Electrónica - El Salvador</p>
           <p>Este es un correo automático, por favor no responder.</p>
         </div>
@@ -233,7 +236,7 @@ export const emailService = {
   },
 
   async sendStockAlertEmail(adminEmail: string, lowStockProducts: Array<{ name: string; stock: number; sku: string }>) {
-    const subject = "⚠️ Alerta de Stock Bajo - Adventure Works";
+    const subject = "⚠️ Alerta de Stock Bajo - EleCtroZ";
     
     const productRows = lowStockProducts
       .map(
@@ -298,7 +301,7 @@ export const emailService = {
       <body>
         <div class="header">
           <h1>⚠️ Alerta de Stock Bajo</h1>
-          <p>Adventure Works</p>
+          <p>EleCtroZ</p>
         </div>
         
         <div class="content">
@@ -322,7 +325,7 @@ export const emailService = {
         </div>
         
         <div class="footer">
-          <p><strong>Adventure Works</strong></p>
+          <p><strong>EleCtroZ</strong></p>
           <p>Sistema de Facturación Electrónica</p>
         </div>
       </body>
