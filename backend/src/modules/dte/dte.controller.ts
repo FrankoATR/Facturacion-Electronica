@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { prisma } from "../../config/prisma";
 import { fromInvoiceToDTE } from "./dte.mapper";
-import { signDTE } from "./dte.sign";
+import { signDTEWithAES, generateControlCode, generateElectronicSeal, verifyDTESignature } from "./dte-crypto";
 import { appendAuditLog } from "../../common/audit";
 import { DTEAnnulRequest } from "./dte.types";
 
@@ -30,16 +30,24 @@ export const dteController = {
         return res.status(404).json({ error: "Invoice not found" });
       }
 
-      if (invoice.status !== "ISSUED") {
-        return res.status(400).json({ error: "Invoice must be issued before generating DTE" });
-      }
-
-      // Generate DTE payload
+      // Generate DTE payload (can preview in any status)
       const dtePayload = fromInvoiceToDTE(invoice as any);
+
+      // Add control code
+      const controlCode = generateControlCode(
+        invoice.number,
+        Number(invoice.total),
+        invoice.issuedAt || new Date()
+      );
 
       return res.json({
         message: "DTE preview generated",
-        dte: dtePayload,
+        dte: {
+          ...dtePayload,
+          codigoGeneracion: controlCode,
+        },
+        status: invoice.status,
+        signed: !!invoice.dteSignature,
       });
     } catch (error: any) {
       console.error("[DTE] Preview error:", error);
@@ -52,12 +60,12 @@ export const dteController = {
 
   /**
    * POST /api/dte/sign/:invoiceId
-   * Sign DTE and store in invoice
+   * Sign DTE with AES-256-GCM and store in invoice
    */
   async sign(req: Request, res: Response) {
     try {
       const { invoiceId } = req.params;
-      const userId = req.user?.userId;
+      const userId = req.user?.id;
 
       const invoice = await prisma.invoice.findUnique({
         where: { id: invoiceId },
@@ -75,24 +83,49 @@ export const dteController = {
         return res.status(404).json({ error: "Invoice not found" });
       }
 
-      if (invoice.status !== "ISSUED") {
-        return res.status(400).json({ error: "Invoice must be issued before signing DTE" });
-      }
-
       if (invoice.dteSignature) {
-        return res.status(400).json({ error: "Invoice already has a DTE signature" });
+        return res.status(400).json({ 
+          error: "Invoice already has a DTE signature",
+          signedAt: invoice.updatedAt 
+        });
       }
 
-      // Generate and sign DTE
+      // Generate DTE payload
       const dtePayload = fromInvoiceToDTE(invoice as any);
-      const dteSigned = signDTE(dtePayload);
+      
+      // Add control code and electronic seal
+      const controlCode = generateControlCode(
+        invoice.number,
+        Number(invoice.total),
+        invoice.issuedAt || new Date()
+      );
+      
+      const electronicSeal = generateElectronicSeal();
 
-      // Store DTE in invoice
-      await prisma.invoice.update({
+      const completeDTE = {
+        ...dtePayload,
+        codigoGeneracion: controlCode,
+        selloRecepcion: electronicSeal,
+      };
+
+      // Sign DTE with AES-256-GCM
+      const signedDTE = signDTEWithAES(completeDTE);
+
+      // Store DTE in invoice and update status to ISSUED
+      const updatedInvoice = await prisma.invoice.update({
         where: { id: invoiceId },
         data: {
-          dteJson: dteSigned.payload as any,
-          dteSignature: dteSigned.signature,
+          status: "ISSUED",
+          dteJson: signedDTE.dteJson as any,
+          dteSignature: JSON.stringify({
+            signature: signedDTE.signature,
+            method: signedDTE.signatureMethod,
+            signedAt: signedDTE.signedAt,
+            hash: signedDTE.hash,
+            controlCode,
+            electronicSeal,
+          }),
+          issuedAt: invoice.issuedAt || new Date(),
         },
       });
 
@@ -104,19 +137,29 @@ export const dteController = {
         entityId: invoiceId,
         payload: {
           invoiceNumber: invoice.number,
-          hash: dteSigned.hash,
-          algorithm: dteSigned.algorithm,
+          hash: signedDTE.hash,
+          method: signedDTE.signatureMethod,
+          controlCode,
         },
       });
 
       return res.json({
         message: "DTE signed successfully",
+        invoice: {
+          id: updatedInvoice.id,
+          number: updatedInvoice.number,
+          status: updatedInvoice.status,
+        },
         dte: {
-          payload: dteSigned.payload,
-          signature: dteSigned.signature,
-          hash: dteSigned.hash,
-          signedAt: dteSigned.signedAt,
-          algorithm: dteSigned.algorithm,
+          payload: signedDTE.dteJson,
+          signature: {
+            value: signedDTE.signature,
+            method: signedDTE.signatureMethod,
+            signedAt: signedDTE.signedAt,
+            hash: signedDTE.hash,
+            controlCode,
+            electronicSeal,
+          },
         },
       });
     } catch (error: any) {
@@ -130,16 +173,20 @@ export const dteController = {
 
   /**
    * POST /api/dte/annul/:invoiceId
-   * Annul a DTE with reason
+   * Annul a DTE with reason (for product returns, errors, etc.)
    */
   async annul(req: Request, res: Response) {
     try {
       const { invoiceId } = req.params;
-      const userId = req.user?.userId;
+      const userId = req.user?.id;
       const { reason } = req.body as DTEAnnulRequest;
 
       if (!reason || reason.trim().length === 0) {
         return res.status(400).json({ error: "Annulment reason is required" });
+      }
+
+      if (reason.trim().length < 10) {
+        return res.status(400).json({ error: "Annulment reason must be at least 10 characters" });
       }
 
       const invoice = await prisma.invoice.findUnique({
@@ -151,15 +198,26 @@ export const dteController = {
       }
 
       if (invoice.status === "ANNULLED") {
-        return res.status(400).json({ error: "Invoice is already annulled" });
+        return res.status(400).json({ 
+          error: "Invoice is already annulled",
+          annulledAt: invoice.annulledAt,
+          annulReason: invoice.annulReason,
+        });
       }
 
       if (invoice.status !== "ISSUED") {
-        return res.status(400).json({ error: "Only issued invoices can be annulled" });
+        return res.status(400).json({ 
+          error: "Only issued invoices can be annulled",
+          currentStatus: invoice.status 
+        });
+      }
+
+      if (!invoice.dteSignature) {
+        return res.status(400).json({ error: "Invoice does not have a DTE signature" });
       }
 
       // Annul the invoice
-      await prisma.invoice.update({
+      const annulledInvoice = await prisma.invoice.update({
         where: { id: invoiceId },
         data: {
           status: "ANNULLED",
@@ -177,17 +235,18 @@ export const dteController = {
         payload: {
           invoiceNumber: invoice.number,
           reason: reason.trim(),
+          previousStatus: invoice.status,
         },
       });
 
       return res.json({
         message: "Invoice annulled successfully",
         invoice: {
-          id: invoice.id,
-          number: invoice.number,
-          status: "ANNULLED",
-          annulledAt: new Date(),
-          annulReason: reason.trim(),
+          id: annulledInvoice.id,
+          number: annulledInvoice.number,
+          status: annulledInvoice.status,
+          annulledAt: annulledInvoice.annulledAt,
+          annulReason: annulledInvoice.annulReason,
         },
       });
     } catch (error: any) {
@@ -198,5 +257,56 @@ export const dteController = {
       });
     }
   },
-};
 
+  /**
+   * GET /api/dte/verify/:invoiceId
+   * Verify DTE signature integrity
+   */
+  async verify(req: Request, res: Response) {
+    try {
+      const { invoiceId } = req.params;
+
+      const invoice = await prisma.invoice.findUnique({
+        where: { id: invoiceId },
+      });
+
+      if (!invoice) {
+        return res.status(404).json({ error: "Invoice not found" });
+      }
+
+      if (!invoice.dteSignature || !invoice.dteJson) {
+        return res.status(400).json({ error: "Invoice does not have a DTE signature" });
+      }
+
+      // Parse signature data
+      const signatureData = JSON.parse(invoice.dteSignature as string);
+      
+      // Verify signature
+      const isValid = verifyDTESignature(
+        signatureData.signature,
+        invoice.dteJson,
+        signatureData.hash
+      );
+
+      return res.json({
+        valid: isValid,
+        invoice: {
+          number: invoice.number,
+          status: invoice.status,
+        },
+        signature: {
+          method: signatureData.method,
+          signedAt: signatureData.signedAt,
+          hash: signatureData.hash,
+          controlCode: signatureData.controlCode,
+        },
+      });
+    } catch (error: any) {
+      console.error("[DTE] Verify error:", error);
+      return res.status(500).json({
+        error: "Failed to verify DTE",
+        message: error.message,
+      });
+    }
+  },
+};

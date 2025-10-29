@@ -36,7 +36,10 @@ export const SalesHistory: React.FC = () => {
   }, [fetchInvoices, fetchClients]);
 
   // Filtrar facturas emitidas
-  const emittedInvoices = invoices.filter(invoice => invoice.status === 'emitida');
+  const emittedInvoices = invoices.filter(invoice => {
+    const status = (invoice.status || '').toString().toLowerCase();
+    return status === 'emmited' || status === 'issued';
+  });
 
   // Aplicar filtros
   const filteredInvoices = emittedInvoices.filter(invoice => {

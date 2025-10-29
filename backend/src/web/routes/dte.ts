@@ -32,6 +32,7 @@ function authenticateFromQueryOrHeader(req: Request, res: Response, next: NextFu
 dteRouter.post("/preview/:invoiceId", authenticate, authorize(["ADMIN", "SELLER"]), dteController.preview);
 dteRouter.post("/sign/:invoiceId", authenticate, authorize(["ADMIN", "SELLER"]), dteController.sign);
 dteRouter.post("/annul/:invoiceId", authenticate, authorize(["ADMIN"]), dteController.annul);
+dteRouter.get("/verify/:invoiceId", authenticate, authorize(["ADMIN", "SELLER", "ACCOUNTANT", "AUDITOR"]), dteController.verify);
 
 dteRouter.post("/:invoiceId/send", authenticate, authorize(["ADMIN", "SELLER"]), async (req, res) => {
   const { invoiceId } = req.params;

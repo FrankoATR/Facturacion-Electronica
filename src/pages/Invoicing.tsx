@@ -1,6 +1,6 @@
 // TODO: validar vs PDF - Módulo de Facturación (electrónica y tradicional)
 import React, { useEffect, useState } from 'react';
-import { Plus, Search, FileText, Eye, X, XCircle } from 'lucide-react';
+import { Plus, Search, FileText, Eye, X, XCircle, Shield } from 'lucide-react';
 import { useInvoiceStore } from '../stores/invoiceStore';
 import { useClientStore } from '../stores/clientStore';
 import { useProductStore } from '../stores/productStore';
@@ -13,6 +13,8 @@ import { Modal } from '../components/common/Modal';
 import { ClientAutocomplete } from '../components/common/ClientAutocomplete';
 import { InvoicePreviewModal } from '../components/invoicing/InvoicePreviewModal';
 import { AnnulInvoiceModal } from '../components/invoicing/AnnulInvoiceModal';
+import { SignDTEModal } from '../components/invoicing/SignDTEModal';
+import { DTEStatusBadge } from '../components/invoicing/DTEStatusBadge';
 import { Invoice, InvoiceItem, Client, Product } from '../types';
 import { apiFetch } from '../lib/api';
 import { useForm } from 'react-hook-form';
@@ -41,8 +43,10 @@ export const Invoicing: React.FC = () => {
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [isAnnulModalOpen, setIsAnnulModalOpen] = useState(false);
+  const [isSignDTEModalOpen, setIsSignDTEModalOpen] = useState(false);
   const [viewingInvoice, setViewingInvoice] = useState<Invoice | null>(null);
   const [annullingInvoice, setAnnullingInvoice] = useState<Invoice | null>(null);
+  const [signingInvoice, setSigningInvoice] = useState<Invoice | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<string>('');
   const [itemQuantity, setItemQuantity] = useState<number>(1);
   const [itemDiscount, setItemDiscount] = useState<number>(0);
@@ -116,7 +120,7 @@ export const Invoicing: React.FC = () => {
       clientId: '',
       number: 'BORRADOR',
       type: 'electronica',
-      status: 'borrador',
+      status: 'draft',
       items: [],
       subtotal: 0,
       totalTax: 0,
@@ -216,8 +220,8 @@ export const Invoicing: React.FC = () => {
     const invoiceData = {
       ...currentInvoice,
       ...data,
-      status: 'emitida' as const,
-      issuedAt: new Date()
+      status: 'draft' as const,
+      issuedAt: undefined,
     };
 
     setPendingInvoiceData(invoiceData);
@@ -229,7 +233,7 @@ export const Invoicing: React.FC = () => {
 
     try {
       await createInvoice(pendingInvoiceData);
-      showSuccess('Factura emitida exitosamente');
+      showSuccess('Factura creada en borrador');
       setIsPreviewModalOpen(false);
       handleCloseCreateModal();
       setPendingInvoiceData(null);
@@ -267,10 +271,10 @@ export const Invoicing: React.FC = () => {
     try {
       await apiFetch(`/dte/annul/${annullingInvoice.id}`, {
         method: 'POST',
-        body: JSON.stringify({ reason }),
+        body: { reason },
       });
       
-      showSuccess('Factura anulada exitosamente');
+      showSuccess('Factura cancelada exitosamente');
       handleCloseAnnulModal();
       await fetchInvoices(); // Refresh the list
     } catch (error: any) {
@@ -280,6 +284,20 @@ export const Invoicing: React.FC = () => {
     } finally {
       setIsAnnulling(false);
     }
+  };
+
+  const handleOpenSignDTEModal = (invoice: Invoice) => {
+    setSigningInvoice(invoice);
+    setIsSignDTEModalOpen(true);
+  };
+
+  const handleCloseSignDTEModal = () => {
+    setIsSignDTEModalOpen(false);
+    setSigningInvoice(null);
+  };
+
+  const handleSignDTESuccess = async () => {
+    await fetchInvoices(); // Refresh the list
   };
 
   const getClientName = (clientId: string) => {
@@ -320,33 +338,12 @@ export const Invoicing: React.FC = () => {
     {
       key: 'status',
       header: 'Estado',
-      render: (invoice: Invoice) => {
-        const statusColors = {
-          borrador: 'bg-gray-100 text-gray-800',
-          emitida: 'bg-green-100 text-green-800',
-          anulada: 'bg-red-100 text-red-800',
-          DRAFT: 'bg-gray-100 text-gray-800',
-          ISSUED: 'bg-green-100 text-green-800',
-          CANCELED: 'bg-red-100 text-red-800',
-          ANNULLED: 'bg-red-100 text-red-800'
-        };
-
-        const statusLabels = {
-          borrador: 'Borrador',
-          emitida: 'Emitida',
-          anulada: 'Anulada',
-          DRAFT: 'Borrador',
-          ISSUED: 'Emitida',
-          CANCELED: 'Cancelada',
-          ANNULLED: 'Anulada'
-        };
-        
-        return (
-          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${statusColors[invoice.status]}`}>
-            {statusLabels[invoice.status] || invoice.status}
-          </span>
-        );
-      }
+      render: (invoice: Invoice) => (
+        <DTEStatusBadge 
+          status={invoice.status as any} 
+          hasDTESignature={!!invoice.dteSignature}
+        />
+      )
     },
     {
       key: 'issuedAt',
@@ -360,26 +357,44 @@ export const Invoicing: React.FC = () => {
     {
       key: 'actions',
       header: 'Acciones',
-      render: (invoice: Invoice) => (
-        <div className="flex space-x-2">
-          <button
-            onClick={() => handleViewInvoice(invoice)}
-            className="text-blue-600 hover:text-blue-800"
-            title="Ver/Descargar DTE"
-          >
-            <Eye size={16} />
-          </button>
-          {invoice.status !== 'ANNULLED' && invoice.status !== 'anulada' && invoice.status !== 'CANCELED' && canUpdate && (
-            <button
-              onClick={() => handleOpenAnnulModal(invoice)}
-              className="text-red-600 hover:text-red-800"
-              title="Anular Factura"
-            >
-              <XCircle size={16} />
-            </button>
-          )}
-        </div>
-      )
+      render: (invoice: Invoice) => {
+        const statusNormalized = (invoice.status || '').toString().toLowerCase();
+        const hasSignature = !!invoice.dteSignature;
+        const canSign = (statusNormalized === 'draft' || statusNormalized === 'borrador') && !hasSignature && canUpdate;
+        const canAnnul = (statusNormalized === 'emmited' || statusNormalized === 'issued' || statusNormalized === 'emitida') && hasSignature && canUpdate;
+
+        return (
+          <div className="flex space-x-2">
+            {hasSignature && (
+              <button
+                onClick={() => handleViewInvoice(invoice)}
+                className="text-blue-600 hover:text-blue-800"
+                title="Ver/Descargar DTE"
+              >
+                <Eye size={16} />
+              </button>
+            )}
+            {canSign && (
+              <button
+                onClick={() => handleOpenSignDTEModal(invoice)}
+                className="text-green-600 hover:text-green-800"
+                title="Firmar DTE"
+              >
+                <Shield size={16} />
+              </button>
+            )}
+            {canAnnul && (
+              <button
+                onClick={() => handleOpenAnnulModal(invoice)}
+                className="text-red-600 hover:text-red-800"
+                title="Cancelar DTE"
+              >
+                <XCircle size={16} />
+              </button>
+            )}
+          </div>
+        );
+      }
     }
   ];
 
@@ -757,6 +772,14 @@ export const Invoicing: React.FC = () => {
         onConfirm={handleConfirmAnnul}
         invoice={annullingInvoice}
         isSubmitting={isAnnulling}
+      />
+
+      {/* Sign DTE Modal */}
+      <SignDTEModal
+        isOpen={isSignDTEModalOpen}
+        onClose={handleCloseSignDTEModal}
+        invoice={signingInvoice}
+        onSuccess={handleSignDTESuccess}
       />
     </div>
   );

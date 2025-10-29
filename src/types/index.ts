@@ -18,6 +18,12 @@ export interface Client {
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
+  // CCF fiscal fields
+  nit?: string;
+  nrc?: string;
+  giro?: string;
+  actividadEconomica?: string;
+  direccionFiscal?: string;
 }
 
 export interface Product {
@@ -50,7 +56,7 @@ export interface Invoice {
   clientId: string;
   number: string;
   type: 'TRADITIONAL' | 'ELECTRONIC' | 'tradicional' | 'electronica';
-  status: 'DRAFT' | 'ISSUED' | 'CANCELED' | 'borrador' | 'emitida' | 'anulada';
+  status: 'DRAFT' | 'ISSUED' | 'CANCELED' | 'ANNULLED' | 'draft' | 'emmited' | 'rejected';
   items: InvoiceItem[];
   subtotal: number;
   totalTax: number;
@@ -61,6 +67,12 @@ export interface Invoice {
   issuedAt?: Date;
   createdAt: Date;
   updatedAt: Date;
+  // DTE fields
+  documentType?: 'FCF' | 'CCF';
+  dteJson?: any;
+  dteSignature?: string;
+  annulledAt?: Date;
+  annulReason?: string;
 }
 
 export interface SalesRecord extends Invoice {

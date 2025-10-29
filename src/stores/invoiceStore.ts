@@ -29,7 +29,7 @@ const MOCK_INVOICES: Invoice[] = [
     clientId: '1',
     number: 'FAC-2024-001',
     type: 'electronica',
-    status: 'emitida',
+    status: 'emmited',
     items: [
       {
         id: '1',
@@ -99,14 +99,14 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
     set({ loading: true, error: null });
     try {
       // specific endpoints for state transitions
-      if (updates.status === 'emitida') {
+      if (updates.status === 'emmited') {
         const res = await apiFetch<{ data: any }>(`/invoices/${id}/issue`, { method: 'POST' });
         set(state => ({ invoices: state.invoices.map(i => i.id === id ? mapApiInvoice(res.data) : i), loading: false }));
         return;
       }
-      if (updates.status === 'anulada') {
+      if (updates.status === 'rejected') {
         await apiFetch<void>(`/invoices/${id}/cancel`, { method: 'POST' });
-        set(state => ({ invoices: state.invoices.map(i => i.id === id ? { ...i, status: 'anulada' } : i), loading: false }));
+        set(state => ({ invoices: state.invoices.map(i => i.id === id ? { ...i, status: 'rejected' } : i), loading: false }));
         return;
       }
       // fallback: no generic PATCH endpoint for invoices in backend; refresh

@@ -30,15 +30,27 @@ export function mapApiProduct(p: any): Product {
 }
 
 function mapStatusToUi(status: string): Invoice['status'] {
-  switch (status) {
+  if (!status) return 'draft';
+
+  const normalized = status.toUpperCase();
+
+  switch (normalized) {
     case 'DRAFT':
-      return 'borrador';
+      return 'draft';
     case 'ISSUED':
-      return 'emitida';
+      return 'emmited';
     case 'CANCELED':
-      return 'anulada';
+    case 'ANNULLED':
+      return 'rejected';
     default:
-      return (status as any) ?? 'borrador';
+      switch (status) {
+        case 'draft':
+        case 'emmited':
+        case 'rejected':
+          return status;
+        default:
+          return (status as any) ?? 'draft';
+      }
   }
 }
 
@@ -73,14 +85,18 @@ export function mapApiInvoice(inv: any): Invoice {
     status: mapStatusToUi(inv.status),
     items,
     subtotal: typeof inv.subtotal === 'number' ? inv.subtotal : Number(inv.subtotal),
-    totalTax: typeof inv.taxTotal === 'number' ? inv.taxTotal : Number(inv.taxTotal ?? 0),
+    totalTax: typeof inv.totalTax === 'number' ? inv.totalTax : typeof inv.taxTotal === 'number' ? inv.taxTotal : Number(inv.totalTax ?? inv.taxTotal ?? 0),
     total: typeof inv.total === 'number' ? inv.total : Number(inv.total),
     paymentMethod: inv.paymentMethod ?? '',
     notes: inv.notes ?? '',
     issuedBy: inv.createdById ?? '',
     issuedAt: inv.issuedAt ? new Date(inv.issuedAt) : undefined,
     createdAt: new Date(inv.createdAt),
-    updatedAt: new Date(inv.updatedAt)
+    updatedAt: new Date(inv.updatedAt),
+    dteJson: inv.dteJson ?? undefined,
+    dteSignature: inv.dteSignature ?? undefined,
+    annulledAt: inv.annulledAt ? new Date(inv.annulledAt) : undefined,
+    annulReason: inv.annulReason ?? undefined,
   };
 }
 

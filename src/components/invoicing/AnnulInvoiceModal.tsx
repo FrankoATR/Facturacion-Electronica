@@ -45,7 +45,7 @@ export const AnnulInvoiceModal: React.FC<AnnulInvoiceModalProps> = ({
               <AlertTriangle className="h-6 w-6 text-red-600" />
             </div>
             <h2 className="text-xl font-bold text-gray-900">
-              Anular Factura
+              Cancelar Factura
             </h2>
           </div>
           <button
@@ -66,7 +66,7 @@ export const AnnulInvoiceModal: React.FC<AnnulInvoiceModalProps> = ({
               <div className="text-sm text-yellow-800">
                 <p className="font-medium mb-1">Esta acción no se puede deshacer</p>
                 <p>
-                  La factura <strong>{invoice.number}</strong> será marcada como anulada.
+                  La factura <strong>{invoice.number}</strong> será marcada como rechazada.
                   No se eliminará del sistema, pero no podrá ser utilizada.
                 </p>
               </div>
@@ -94,13 +94,13 @@ export const AnnulInvoiceModal: React.FC<AnnulInvoiceModalProps> = ({
           {/* Reason Input */}
           <div>
             <label htmlFor="annul-reason" className="block text-sm font-medium text-gray-700 mb-2">
-              Motivo de Anulación <span className="text-red-500">*</span>
+              Motivo de Cancelación <span className="text-red-500">*</span>
             </label>
             <textarea
               id="annul-reason"
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              placeholder="Ingrese el motivo por el cual se anula esta factura..."
+              placeholder="Ingrese el motivo por el cual se cancela esta factura..."
               rows={4}
               required
               disabled={isSubmitting}
@@ -129,10 +129,10 @@ export const AnnulInvoiceModal: React.FC<AnnulInvoiceModalProps> = ({
               {isSubmitting ? (
                 <>
                   <span className="animate-spin mr-2">⏳</span>
-                  Anulando...
+                  Cancelando...
                 </>
               ) : (
-                'Anular Factura'
+                'Cancelar Factura'
               )}
             </button>
           </div>
@@ -141,4 +141,3 @@ export const AnnulInvoiceModal: React.FC<AnnulInvoiceModalProps> = ({
     </div>
   );
 };
-

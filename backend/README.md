@@ -109,17 +109,43 @@ CORS_ORIGIN=http://localhost:5173
 
 ## DTE (Documento Tributario Electrónico)
 
-The system includes internal DTE generation and signing:
+The system includes internal DTE generation and signing with **AES-256-GCM encryption**:
 
 - **FCF (Factura Consumidor Final)**: Standard consumer invoice
 - **CCF (Comprobante de Crédito Fiscal)**: Fiscal credit invoice (requires client NIT/NRC)
 
 ### DTE Endpoints
 - `POST /api/dte/preview/:invoiceId` - Preview DTE JSON without signing
-- `POST /api/dte/sign/:invoiceId` - Generate and sign DTE (sets status to ISSUED)
+- `POST /api/dte/sign/:invoiceId` - **Sign DTE with AES-256-GCM** (sets status to ISSUED)
 - `POST /api/dte/annul/:invoiceId` - Annul invoice with reason (audit logged)
+- `GET /api/dte/verify/:invoiceId` - Verify DTE signature integrity
 - `GET /api/dte/:invoiceId/json` - Download DTE JSON
 - `GET /api/dte/:invoiceId/pdf` - Download professional PDF
+
+### DTE Signature Process
+
+The system uses **AES-256-GCM** (Advanced Encryption Standard with Galois/Counter Mode) for signing DTEs:
+
+1. **Canonicalization**: JSON is canonicalized (keys sorted alphabetically)
+2. **Hash Generation**: SHA-256 hash of the canonical JSON
+3. **Encryption**: AES-256-GCM encryption with:
+   - Random IV (Initialization Vector)
+   - Authentication Tag for integrity
+   - Derived key from `DTE_SECRET_KEY`
+4. **Control Code**: Unique control code generated from invoice data
+5. **Electronic Seal**: Timestamp-based seal for additional security
+
+**Signature Output:**
+```json
+{
+  "signature": "base64-encoded-encrypted-data",
+  "method": "AES-256-GCM",
+  "signedAt": "2025-10-29T04:15:00.000Z",
+  "hash": "sha256-hash-of-document",
+  "controlCode": "A1B2C3D4E5F6G7H8",
+  "electronicSeal": "SEAL-XXXXX..."
+}
+```
 
 ### RSA Key Generation
 
