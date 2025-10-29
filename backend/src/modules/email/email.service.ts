@@ -66,6 +66,12 @@ export interface EmailOptions {
 
 export const emailService = {
   async sendEmail(options: EmailOptions) {
+    // Check if email sending is enabled
+    if (process.env.SEND_EMAILS !== 'true') {
+      console.log("📧 Email sending disabled (SEND_EMAILS !== 'true') - skipping:", options.to);
+      return { success: true, skipped: true, reason: "SEND_EMAILS disabled" };
+    }
+
     if (!transporter) {
       console.log("⚠️  SMTP no disponible - correo no enviado a:", options.to);
       return { success: false, error: "SMTP not configured" };

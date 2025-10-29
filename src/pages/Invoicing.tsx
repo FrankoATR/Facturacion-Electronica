@@ -1,6 +1,6 @@
 // TODO: validar vs PDF - Módulo de Facturación (electrónica y tradicional)
 import React, { useEffect, useState } from 'react';
-import { Plus, Search, FileText, Eye, X } from 'lucide-react';
+import { Plus, Search, FileText, Eye, X, XCircle } from 'lucide-react';
 import { useInvoiceStore } from '../stores/invoiceStore';
 import { useClientStore } from '../stores/clientStore';
 import { useProductStore } from '../stores/productStore';
@@ -11,7 +11,10 @@ import { Input } from '../components/common/Input';
 import { DataTable } from '../components/common/DataTable';
 import { Modal } from '../components/common/Modal';
 import { ClientAutocomplete } from '../components/common/ClientAutocomplete';
+import { InvoicePreviewModal } from '../components/invoicing/InvoicePreviewModal';
+import { AnnulInvoiceModal } from '../components/invoicing/AnnulInvoiceModal';
 import { Invoice, InvoiceItem, Client, Product } from '../types';
+import { apiFetch } from '../lib/api';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -35,13 +38,18 @@ export const Invoicing: React.FC = () => {
   
   const [searchTerm, setSearchTerm] = useState('');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [isAnnulModalOpen, setIsAnnulModalOpen] = useState(false);
   const [viewingInvoice, setViewingInvoice] = useState<Invoice | null>(null);
+  const [annullingInvoice, setAnnullingInvoice] = useState<Invoice | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<string>('');
   const [itemQuantity, setItemQuantity] = useState<number>(1);
   const [itemDiscount, setItemDiscount] = useState<number>(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedClientId, setSelectedClientId] = useState<string>('');
+  const [pendingInvoiceData, setPendingInvoiceData] = useState<any>(null);
+  const [isAnnulling, setIsAnnulling] = useState(false);
   const itemsPerPage = 10;
 
   const canCreate = user && hasPermission(user.role, 'facturacion', 'create');
@@ -204,17 +212,27 @@ export const Invoicing: React.FC = () => {
       return;
     }
 
-    try {
-      const invoiceData = {
-        ...currentInvoice,
-        ...data,
-        status: 'emitida' as const,
-        issuedAt: new Date()
-      };
+    // Prepare invoice data and show preview
+    const invoiceData = {
+      ...currentInvoice,
+      ...data,
+      status: 'emitida' as const,
+      issuedAt: new Date()
+    };
 
-      await createInvoice(invoiceData);
+    setPendingInvoiceData(invoiceData);
+    setIsPreviewModalOpen(true);
+  };
+
+  const handleConfirmInvoice = async () => {
+    if (!pendingInvoiceData) return;
+
+    try {
+      await createInvoice(pendingInvoiceData);
       showSuccess('Factura emitida exitosamente');
+      setIsPreviewModalOpen(false);
       handleCloseCreateModal();
+      setPendingInvoiceData(null);
     } catch (error: any) {
       console.error('Error al crear factura:', error);
       const errorMessage = error.message || 'Error al crear factura';
@@ -222,9 +240,46 @@ export const Invoicing: React.FC = () => {
     }
   };
 
+  const handleClosePreview = () => {
+    setIsPreviewModalOpen(false);
+    // Don't clear pendingInvoiceData in case user wants to edit and try again
+  };
+
   const handleViewInvoice = (invoice: Invoice) => {
     setViewingInvoice(invoice);
     setIsViewModalOpen(true);
+  };
+
+  const handleOpenAnnulModal = (invoice: Invoice) => {
+    setAnnullingInvoice(invoice);
+    setIsAnnulModalOpen(true);
+  };
+
+  const handleCloseAnnulModal = () => {
+    setIsAnnulModalOpen(false);
+    setAnnullingInvoice(null);
+  };
+
+  const handleConfirmAnnul = async (reason: string) => {
+    if (!annullingInvoice) return;
+
+    setIsAnnulling(true);
+    try {
+      await apiFetch(`/dte/annul/${annullingInvoice.id}`, {
+        method: 'POST',
+        body: JSON.stringify({ reason }),
+      });
+      
+      showSuccess('Factura anulada exitosamente');
+      handleCloseAnnulModal();
+      await fetchInvoices(); // Refresh the list
+    } catch (error: any) {
+      console.error('Error al anular factura:', error);
+      const errorMessage = error.message || 'Error al anular factura';
+      showError(`Error: ${errorMessage}`);
+    } finally {
+      setIsAnnulling(false);
+    }
   };
 
   const getClientName = (clientId: string) => {
@@ -272,12 +327,23 @@ export const Invoicing: React.FC = () => {
           anulada: 'bg-red-100 text-red-800',
           DRAFT: 'bg-gray-100 text-gray-800',
           ISSUED: 'bg-green-100 text-green-800',
-          CANCELED: 'bg-red-100 text-red-800'
+          CANCELED: 'bg-red-100 text-red-800',
+          ANNULLED: 'bg-red-100 text-red-800'
+        };
+
+        const statusLabels = {
+          borrador: 'Borrador',
+          emitida: 'Emitida',
+          anulada: 'Anulada',
+          DRAFT: 'Borrador',
+          ISSUED: 'Emitida',
+          CANCELED: 'Cancelada',
+          ANNULLED: 'Anulada'
         };
         
         return (
           <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${statusColors[invoice.status]}`}>
-            {invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}
+            {statusLabels[invoice.status] || invoice.status}
           </span>
         );
       }
@@ -303,6 +369,15 @@ export const Invoicing: React.FC = () => {
           >
             <Eye size={16} />
           </button>
+          {invoice.status !== 'ANNULLED' && invoice.status !== 'anulada' && invoice.status !== 'CANCELED' && canUpdate && (
+            <button
+              onClick={() => handleOpenAnnulModal(invoice)}
+              className="text-red-600 hover:text-red-800"
+              title="Anular Factura"
+            >
+              <XCircle size={16} />
+            </button>
+          )}
         </div>
       )
     }
@@ -554,7 +629,8 @@ export const Invoicing: React.FC = () => {
               Cancelar
             </Button>
             <Button type="submit" loading={isSubmitting}>
-              Emitir Factura
+              <Eye size={16} className="mr-2" />
+              Previsualizar
             </Button>
           </div>
         </form>
@@ -654,6 +730,34 @@ export const Invoicing: React.FC = () => {
           </div>
         )}
       </Modal>
+
+      {/* Invoice Preview Modal */}
+      {pendingInvoiceData && (
+        <InvoicePreviewModal
+          isOpen={isPreviewModalOpen}
+          onClose={handleClosePreview}
+          onConfirm={handleConfirmInvoice}
+          invoiceData={{
+            clientId: pendingInvoiceData.clientId,
+            client: clients.find(c => c.id === pendingInvoiceData.clientId),
+            type: pendingInvoiceData.type,
+            documentType: pendingInvoiceData.documentType,
+            paymentMethod: pendingInvoiceData.paymentMethod,
+            notes: pendingInvoiceData.notes,
+            items: pendingInvoiceData.items || []
+          }}
+          isSubmitting={loading}
+        />
+      )}
+
+      {/* Annul Invoice Modal */}
+      <AnnulInvoiceModal
+        isOpen={isAnnulModalOpen}
+        onClose={handleCloseAnnulModal}
+        onConfirm={handleConfirmAnnul}
+        invoice={annullingInvoice}
+        isSubmitting={isAnnulling}
+      />
     </div>
   );
 };

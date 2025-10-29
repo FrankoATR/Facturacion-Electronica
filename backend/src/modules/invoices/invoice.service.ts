@@ -8,15 +8,14 @@ import { stockAlertService } from "../inventory/stock-alert.service";
 import { emailService } from "../email/email.service";
 import { env } from "../../config/env";
 
-function calcTotals(items: CreateInvoiceInput["items"]) {
-  // Calcular subtotal considerando descuentos
+// FCF (Factura Consumidor Final) calculation - same as before
+function computeTotalsFCF(items: CreateInvoiceInput["items"]) {
   const subtotal = items.reduce((acc, it) => {
     const baseAmount = it.unitPrice * it.quantity;
     const discount = it.discount || 0;
     return acc + (baseAmount - discount);
   }, 0);
   
-  // IVA 13% sobre el subtotal después de descuentos
   const taxTotal = items.reduce((acc, it) => {
     const baseAmount = it.unitPrice * it.quantity;
     const discount = it.discount || 0;
@@ -26,6 +25,35 @@ function calcTotals(items: CreateInvoiceInput["items"]) {
   
   const total = subtotal + taxTotal;
   return { subtotal, taxTotal, total };
+}
+
+// CCF (Comprobante de Crédito Fiscal) calculation - IVA 13% breakdown
+function computeTotalsCCF(items: CreateInvoiceInput["items"]) {
+  // For CCF, we need to break down the IVA clearly
+  const subtotal = items.reduce((acc, it) => {
+    const baseAmount = it.unitPrice * it.quantity;
+    const discount = it.discount || 0;
+    return acc + (baseAmount - discount);
+  }, 0);
+  
+  // IVA 13% (El Salvador standard rate)
+  const taxTotal = items.reduce((acc, it) => {
+    const baseAmount = it.unitPrice * it.quantity;
+    const discount = it.discount || 0;
+    const taxableAmount = baseAmount - discount;
+    return acc + (taxableAmount * (it.taxRate / 100));
+  }, 0);
+  
+  const total = subtotal + taxTotal;
+  
+  // CCF includes the same calculation but may have additional fields for retention
+  // For now, we use the same calculation (retention = 0)
+  return { subtotal, taxTotal, total, retention: 0 };
+}
+
+// Legacy function for backward compatibility
+function calcTotals(items: CreateInvoiceInput["items"]) {
+  return computeTotalsFCF(items);
 }
 
 export const invoiceService = {
@@ -38,6 +66,21 @@ export const invoiceService = {
   },
 
   async create(userId: string | undefined, input: CreateInvoiceInput) {
+    // Validate client for CCF
+    if (input.documentType === "CCF") {
+      const client = await prisma.client.findUnique({
+        where: { id: input.clientId },
+      });
+      
+      if (!client) {
+        throw new Error("Client not found");
+      }
+      
+      if (!client.nit || !client.nrc) {
+        throw new Error("CCF requires client to have NIT and NRC. Please update client information.");
+      }
+    }
+    
     const productIds = input.items.map(i => i.productId).filter(Boolean) as string[];
     const products = productIds.length ? await prisma.product.findMany({ where: { id: { in: productIds } } }) : [];
     const productById = new Map(products.map(p => [p.id, p]));
@@ -49,7 +92,11 @@ export const invoiceService = {
       }
     }
 
-    const { subtotal, taxTotal, total } = calcTotals(input.items);
+    // Use appropriate calculation based on document type
+    const totals = input.documentType === "CCF" 
+      ? computeTotalsCCF(input.items)
+      : computeTotalsFCF(input.items);
+    const { subtotal, taxTotal, total } = totals;
     const number = await invoiceRepository.nextNumber();
 
     const created = await prisma.$transaction(async (tx) => {
@@ -58,6 +105,7 @@ export const invoiceService = {
           number,
           clientId: input.clientId,
           type: input.type as any,
+          documentType: input.documentType as any,
           paymentMethod: input.paymentMethod,
           notes: input.notes,
           createdById: userId,

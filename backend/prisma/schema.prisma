@@ -31,10 +31,16 @@ enum InvoiceType {
   TRADITIONAL
 }
 
+enum DocumentType {
+  FCF // Factura Consumidor Final
+  CCF // Comprobante de Crédito Fiscal
+}
+
 enum InvoiceStatus {
   DRAFT
   ISSUED
   CANCELED
+  ANNULLED
 }
 
 enum StockMovementType {
@@ -78,6 +84,11 @@ model Client {
   email      String?
   phone      String?
   address    String?
+  nit        String?       // NIT for CCF
+  nrc        String?       // NRC for CCF
+  giro       String?       // Business line
+  actividadEconomica String? // Economic activity
+  direccionFiscal    String? // Fiscal address
   status     ClientStatus  @default(ACTIVE)
   createdAt  DateTime      @default(now())
   updatedAt  DateTime      @updatedAt
@@ -121,6 +132,7 @@ model Invoice {
   id          String         @id @default(cuid())
   number      String         @unique
   type        InvoiceType
+  documentType DocumentType  @default(FCF)
   status      InvoiceStatus  @default(DRAFT)
   clientId    String
   client      Client         @relation(fields: [clientId], references: [id])
@@ -130,11 +142,16 @@ model Invoice {
   dte         DTE?
   issuedAt    DateTime?
   canceledAt  DateTime?
+  annulledAt  DateTime?
+  annulReason String?
   paymentMethod String?      // proposed minimal field
   notes       String?
   subtotal    Decimal        @db.Decimal(12, 2) @default(0)
   taxTotal    Decimal        @db.Decimal(12, 2) @default(0)
   total       Decimal        @db.Decimal(12, 2) @default(0)
+  // DTE fields
+  dteJson     Json?
+  dteSignature String?
   // proposed: stub for electronic billing identifier/stamp for future integration
   electronicFiscalStamp String?
   paidTotal   Decimal        @db.Decimal(12, 2) @default(0)
@@ -146,6 +163,8 @@ model Invoice {
 
   @@index([clientId])
   @@index([status, type])
+  @@index([issuedAt])
+  @@index([documentType])
 }
 
 model InvoiceItem {

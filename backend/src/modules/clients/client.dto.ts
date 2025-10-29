@@ -6,6 +6,11 @@ export const UpsertClientDto = z.object({
   email: z.string().email().optional(),
   phone: z.string().optional(),
   address: z.string().optional(),
+  nit: z.string().optional(),
+  nrc: z.string().optional(),
+  giro: z.string().optional(),
+  actividadEconomica: z.string().optional(),
+  direccionFiscal: z.string().optional(),
   status: z.enum(["ACTIVE", "INACTIVE"]).optional(),
 });
 

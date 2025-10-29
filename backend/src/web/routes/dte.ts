@@ -3,6 +3,7 @@ import { authenticate, authorize } from "../../middleware/auth";
 import { prisma } from "../../config/prisma";
 import PDFDocument from "pdfkit";
 import { buildInvoiceDto, buildDTEDocument, trySendDte } from "../../modules/dte/dte.service";
+import { dteController } from "../../modules/dte/dte.controller";
 import { verifyToken } from "../../utils/jwt";
 import { emailService } from "../../modules/email/email.service";
 
@@ -27,6 +28,11 @@ function authenticateFromQueryOrHeader(req: Request, res: Response, next: NextFu
   return res.status(401).json({ message: "Unauthorized" });
 }
 
+// New DTE endpoints
+dteRouter.post("/preview/:invoiceId", authenticate, authorize(["ADMIN", "SELLER"]), dteController.preview);
+dteRouter.post("/sign/:invoiceId", authenticate, authorize(["ADMIN", "SELLER"]), dteController.sign);
+dteRouter.post("/annul/:invoiceId", authenticate, authorize(["ADMIN"]), dteController.annul);
+
 dteRouter.post("/:invoiceId/send", authenticate, authorize(["ADMIN", "SELLER"]), async (req, res) => {
   const { invoiceId } = req.params;
   const inv = await prisma.invoice.findUnique({
@@ -45,29 +51,153 @@ dteRouter.post("/:invoiceId/send", authenticate, authorize(["ADMIN", "SELLER"]),
     // Si es factura electrónica y el cliente tiene email, enviar por correo
     if (inv.type === "ELECTRONIC" && inv.client.email) {
       try {
-        // Generar PDF en buffer
+        // Generar PDF en buffer con el mismo formato optimizado
         const dto = await buildInvoiceDto(invoiceId);
         const dteDoc = await buildDTEDocument(invoiceId);
         
         if (dto && dteDoc) {
-          const pdfDoc = new PDFDocument({ margin: 50, size: 'LETTER' });
+          const pdfDoc = new PDFDocument({ 
+            margin: 50, 
+            size: 'LETTER',
+            info: {
+              Title: `Factura ${dto.number}`,
+              Author: 'EleCtroZ S.A. DE C.V.',
+              Subject: 'Factura Electrónica',
+              Creator: 'Sistema EleCtroZ'
+            }
+          });
           const chunks: Buffer[] = [];
           
           pdfDoc.on('data', (chunk) => chunks.push(chunk));
           
           await new Promise<void>((resolve) => {
             pdfDoc.on('end', () => resolve());
-            
-            // Generar mismo contenido del PDF (simplificado para el buffer)
-            pdfDoc.fontSize(24).fillColor('#667eea').text('🏪 ADVENTURE WORKS', { align: 'center' });
-            pdfDoc.fontSize(10).fillColor('#333').text('ADVENTURE WORKS S.A. DE C.V.', { align: 'center' });
+
+            // === HEADER CON LOGO ===
+            pdfDoc.fontSize(24).fillColor('#ff6b35').text('⚡ EleCtroZ', { align: 'center' });
+            pdfDoc.fontSize(10).fillColor('#333').text('EleCtroZ S.A. DE C.V.', { align: 'center' });
             pdfDoc.text('NIT: 0614-031289-001-9 | NRC: 12345-6', { align: 'center' });
+            pdfDoc.text('Colonia Escalón, San Salvador, El Salvador', { align: 'center' });
+            pdfDoc.text('Tel: 2222-2222 | Email: info@electroz.com', { align: 'center' });
+            pdfDoc.moveDown(0.5);
+
+            // Línea divisoria
+            pdfDoc.moveTo(50, pdfDoc.y).lineTo(562, pdfDoc.y).stroke();
+            pdfDoc.moveDown(0.5);
+
+            // === TIPO DE DOCUMENTO ===
+            pdfDoc.fontSize(16).fillColor('#ff6b35').text('FACTURA ELECTRÓNICA', { align: 'center' });
+            pdfDoc.fontSize(12).fillColor('#333').text(`No. ${dto.number}`, { align: 'center' });
+            pdfDoc.moveDown(0.5);
+
+            // === FECHAS EN UNA LÍNEA ===
+            const currentY = pdfDoc.y;
+            pdfDoc.fontSize(10).fillColor('#333');
+            pdfDoc.text(`Fecha Emisión: ${dteDoc.identificacion.fecEmi}`, 50, currentY);
+            pdfDoc.text(`Hora: ${dteDoc.identificacion.horEmi}`, 350, currentY);
             pdfDoc.moveDown();
-            pdfDoc.fontSize(16).text('FACTURA ELECTRÓNICA', { align: 'center' });
-            pdfDoc.fontSize(12).text(`No. ${dto.number}`, { align: 'center' });
+
+            // === INFORMACIÓN DEL CLIENTE (COMPACTA) ===
+            pdfDoc.fillColor('#ff6b35').fontSize(12).text('DATOS DEL CLIENTE', { underline: true });
+            pdfDoc.moveDown(0.3);
+            pdfDoc.fillColor('#333').fontSize(10);
+            
+            const clientY = pdfDoc.y;
+            pdfDoc.text(`Nombre: ${dto.client.name}`, 50, clientY);
+            pdfDoc.text(`NIT/DUI: ${dto.client.taxId}`, 300, clientY);
+            
+            if (dto.client.address || dto.client.phone) {
+              pdfDoc.moveDown(0.8);
+              const clientY2 = pdfDoc.y;
+              if (dto.client.address) pdfDoc.text(`Dirección: ${dto.client.address}`, 50, clientY2);
+              if (dto.client.phone) pdfDoc.text(`Teléfono: ${dto.client.phone}`, 300, clientY2);
+            }
+            
+            if (dto.client.email) {
+              pdfDoc.moveDown(0.8);
+              pdfDoc.text(`Email: ${dto.client.email}`, 50);
+            }
+            
             pdfDoc.moveDown();
-            pdfDoc.fontSize(10).text(`Cliente: ${dto.client.name}`);
-            pdfDoc.text(`Total: $${dto.totals.total.toFixed(2)}`);
+
+            // === TABLA DE ITEMS (OPTIMIZADA) ===
+            pdfDoc.fillColor('#ff6b35').fontSize(12).text('DETALLE DE PRODUCTOS/SERVICIOS', { underline: true });
+            pdfDoc.moveDown(0.3);
+
+            // Encabezado de tabla más compacto
+            const tableTop = pdfDoc.y;
+            pdfDoc.fillColor('#f7fafc').rect(50, tableTop, 512, 18).fill();
+            pdfDoc.fillColor('#333').fontSize(8).font('Helvetica-Bold');
+            pdfDoc.text('No.', 55, tableTop + 4, { width: 25 });
+            pdfDoc.text('Descripción', 85, tableTop + 4, { width: 160 });
+            pdfDoc.text('Cant.', 250, tableTop + 4, { width: 35 });
+            pdfDoc.text('P. Unit.', 290, tableTop + 4, { width: 50 });
+            pdfDoc.text('Desc.', 345, tableTop + 4, { width: 40 });
+            pdfDoc.text('Subtotal', 390, tableTop + 4, { width: 50 });
+            pdfDoc.text('IVA', 445, tableTop + 4, { width: 35 });
+            pdfDoc.text('Total', 485, tableTop + 4, { width: 50 });
+
+            pdfDoc.font('Helvetica');
+            let yPosition = tableTop + 22;
+
+            // Items con espaciado optimizado
+            dto.items.forEach((it, idx) => {
+              pdfDoc.fontSize(8);
+              pdfDoc.text(`${idx + 1}`, 55, yPosition, { width: 25 });
+              pdfDoc.text(it.description, 85, yPosition, { width: 160 });
+              pdfDoc.text(`${it.quantity}`, 250, yPosition, { width: 35 });
+              pdfDoc.text(`$${it.unitPrice.toFixed(2)}`, 290, yPosition, { width: 50 });
+              pdfDoc.text(`$${it.discount.toFixed(2)}`, 345, yPosition, { width: 40 });
+              pdfDoc.text(`$${it.subtotal.toFixed(2)}`, 390, yPosition, { width: 50 });
+              pdfDoc.text(`$${it.taxAmount.toFixed(2)}`, 445, yPosition, { width: 35 });
+              pdfDoc.text(`$${it.total.toFixed(2)}`, 485, yPosition, { width: 50, align: 'right' });
+
+              yPosition += 16; // Espaciado más compacto
+            });
+
+            // === TOTALES (COMPACTOS) ===
+            yPosition += 10;
+            pdfDoc.moveTo(50, yPosition).lineTo(562, yPosition).stroke();
+            yPosition += 8;
+
+            pdfDoc.fontSize(9);
+            pdfDoc.text('Subtotal:', 400, yPosition);
+            pdfDoc.text(`$${dto.totals.subtotal.toFixed(2)}`, 480, yPosition, { align: 'right' });
+
+            yPosition += 12;
+            pdfDoc.text('IVA (13%):', 400, yPosition);
+            pdfDoc.text(`$${dto.totals.taxTotal.toFixed(2)}`, 480, yPosition, { align: 'right' });
+
+            yPosition += 15;
+            pdfDoc.fontSize(11).font('Helvetica-Bold');
+            pdfDoc.fillColor('#ff6b35');
+            pdfDoc.text('TOTAL A PAGAR:', 400, yPosition);
+            pdfDoc.text(`$${dto.totals.total.toFixed(2)}`, 480, yPosition, { align: 'right' });
+
+            // === INFORMACIÓN ADICIONAL (COMPACTA) ===
+            yPosition += 20;
+            pdfDoc.fontSize(8).fillColor('#333').font('Helvetica');
+            pdfDoc.text(`Son: ${dteDoc.resumen.totalLetras}`, 50, yPosition);
+
+            yPosition += 15;
+            pdfDoc.text(`Forma de Pago: ${dto.paymentMethod || 'Efectivo'}`, 50, yPosition);
+
+            // === NOTAS (SI EXISTEN) ===
+            if (dto.notes) {
+              yPosition += 15;
+              pdfDoc.fontSize(9).font('Helvetica-Bold').text('Notas:', 50, yPosition);
+              yPosition += 10;
+              pdfDoc.fontSize(8).font('Helvetica').text(dto.notes, 50, yPosition, { width: 500 });
+            }
+
+            // === FOOTER FIJO ===
+            const footerY = 720;
+            pdfDoc.moveTo(50, footerY).lineTo(562, footerY).stroke();
+            pdfDoc.fontSize(7).fillColor('#666');
+            pdfDoc.text('Documento Tributario Electrónico - El Salvador', 50, footerY + 5, { align: 'center' });
+            pdfDoc.text('Sistema de Facturación EleCtroZ', 50, footerY + 15, { align: 'center' });
+            pdfDoc.text(`Generado: ${new Date().toLocaleString('es-SV')}`, 50, footerY + 25, { align: 'center' });
+
             pdfDoc.end();
           });
 
@@ -117,13 +247,24 @@ dteRouter.get("/:invoiceId/json", authenticateFromQueryOrHeader, authorize(["ADM
   res.json(dteDoc);
 });
 
-// Download DTE PDF (formato profesional con Adventure Works)
+// Download DTE PDF (formato profesional con EleCtroZ)
 dteRouter.get("/:invoiceId/pdf", authenticateFromQueryOrHeader, authorize(["ADMIN", "SELLER", "ACCOUNTANT", "AUDITOR", "CUSTOMER"]), async (req, res) => {
   const dto = await buildInvoiceDto(req.params.invoiceId);
   const dteDoc = await buildDTEDocument(req.params.invoiceId);
   if (!dto || !dteDoc) return res.status(404).json({ message: "Not found" });
 
-  const doc = new PDFDocument({ margin: 50, size: 'LETTER' });
+  // Configurar PDF con codificación UTF-8
+  const doc = new PDFDocument({ 
+    margin: 50, 
+    size: 'LETTER',
+    info: {
+      Title: `Factura ${dto.number}`,
+      Author: 'EleCtroZ S.A. DE C.V.',
+      Subject: 'Factura Electrónica',
+      Creator: 'Sistema EleCtroZ'
+    }
+  });
+  
   res.setHeader("Content-Type", "application/pdf");
   res.setHeader("Content-Disposition", `attachment; filename=Factura-${dto.number}.pdf`);
   doc.pipe(res);
@@ -134,127 +275,124 @@ dteRouter.get("/:invoiceId/pdf", authenticateFromQueryOrHeader, authorize(["ADMI
   doc.text('NIT: 0614-031289-001-9 | NRC: 12345-6', { align: 'center' });
   doc.text('Colonia Escalón, San Salvador, El Salvador', { align: 'center' });
   doc.text('Tel: 2222-2222 | Email: info@electroz.com', { align: 'center' });
-  doc.moveDown();
+  doc.moveDown(0.5);
 
   // Línea divisoria
   doc.moveTo(50, doc.y).lineTo(562, doc.y).stroke();
-  doc.moveDown();
+  doc.moveDown(0.5);
 
   // === TIPO DE DOCUMENTO ===
   doc.fontSize(16).fillColor('#ff6b35').text('FACTURA ELECTRÓNICA', { align: 'center' });
   doc.fontSize(12).fillColor('#333').text(`No. ${dto.number}`, { align: 'center' });
-  doc.moveDown();
+  doc.moveDown(0.5);
 
-  // === INFORMACIÓN DTE ===
-  if (dto.type === 'ELECTRONIC') {
-    doc.fontSize(9).fillColor('#666');
-    doc.text(`Código de Generación: ${dteDoc.identificacion.codigoGeneracion}`, { align: 'center' });
-    doc.text(`Número de Control: ${dteDoc.identificacion.numeroControl}`, { align: 'center' });
-    doc.moveDown();
-  }
-
-  // === FECHAS ===
-  const y1 = doc.y;
+  // === FECHAS EN UNA LÍNEA ===
+  const currentY = doc.y;
   doc.fontSize(10).fillColor('#333');
-  doc.text(`Fecha Emisión: ${dteDoc.identificacion.fecEmi}`, 50, y1);
-  doc.text(`Hora: ${dteDoc.identificacion.horEmi}`, 350, y1);
+  doc.text(`Fecha Emisión: ${dteDoc.identificacion.fecEmi}`, 50, currentY);
+  doc.text(`Hora: ${dteDoc.identificacion.horEmi}`, 350, currentY);
   doc.moveDown();
 
-  // === INFORMACIÓN DEL CLIENTE ===
+  // === INFORMACIÓN DEL CLIENTE (COMPACTA) ===
   doc.fillColor('#ff6b35').fontSize(12).text('DATOS DEL CLIENTE', { underline: true });
-  doc.moveDown(0.5);
+  doc.moveDown(0.3);
   doc.fillColor('#333').fontSize(10);
-  doc.text(`Nombre: ${dto.client.name}`);
-  doc.text(`NIT/DUI: ${dto.client.taxId}`);
-  if (dto.client.address) doc.text(`Dirección: ${dto.client.address}`);
-  if (dto.client.phone) doc.text(`Teléfono: ${dto.client.phone}`);
-  if (dto.client.email) doc.text(`Email: ${dto.client.email}`);
+  
+  const clientY = doc.y;
+  doc.text(`Nombre: ${dto.client.name}`, 50, clientY);
+  doc.text(`NIT/DUI: ${dto.client.taxId}`, 300, clientY);
+  
+  if (dto.client.address || dto.client.phone) {
+    doc.moveDown(0.8);
+    const clientY2 = doc.y;
+    if (dto.client.address) doc.text(`Dirección: ${dto.client.address}`, 50, clientY2);
+    if (dto.client.phone) doc.text(`Teléfono: ${dto.client.phone}`, 300, clientY2);
+  }
+  
+  if (dto.client.email) {
+    doc.moveDown(0.8);
+    doc.text(`Email: ${dto.client.email}`, 50);
+  }
+  
   doc.moveDown();
 
-  // === TABLA DE ITEMS ===
+  // === TABLA DE ITEMS (OPTIMIZADA) ===
   doc.fillColor('#ff6b35').fontSize(12).text('DETALLE DE PRODUCTOS/SERVICIOS', { underline: true });
-  doc.moveDown(0.5);
+  doc.moveDown(0.3);
 
-  // Encabezado de tabla
+  // Encabezado de tabla más compacto
   const tableTop = doc.y;
-  doc.fillColor('#f7fafc').rect(50, tableTop, 512, 20).fill();
-  doc.fillColor('#333').fontSize(9).font('Helvetica-Bold');
-  doc.text('No.', 55, tableTop + 5, { width: 30 });
-  doc.text('Descripción', 90, tableTop + 5, { width: 180 });
-  doc.text('Cant.', 275, tableTop + 5, { width: 40 });
-  doc.text('P. Unit.', 320, tableTop + 5, { width: 60 });
-  doc.text('Desc.', 385, tableTop + 5, { width: 45 });
-  doc.text('Subtotal', 435, tableTop + 5, { width: 55 });
-  doc.text('IVA', 495, tableTop + 5, { width: 35 });
-  doc.text('Total', 535, tableTop + 5, { width: 60 });
+  doc.fillColor('#f7fafc').rect(50, tableTop, 512, 18).fill();
+  doc.fillColor('#333').fontSize(8).font('Helvetica-Bold');
+  doc.text('No.', 55, tableTop + 4, { width: 25 });
+  doc.text('Descripción', 85, tableTop + 4, { width: 160 });
+  doc.text('Cant.', 250, tableTop + 4, { width: 35 });
+  doc.text('P. Unit.', 290, tableTop + 4, { width: 50 });
+  doc.text('Desc.', 345, tableTop + 4, { width: 40 });
+  doc.text('Subtotal', 390, tableTop + 4, { width: 50 });
+  doc.text('IVA', 445, tableTop + 4, { width: 35 });
+  doc.text('Total', 485, tableTop + 4, { width: 50 });
 
   doc.font('Helvetica');
-  let yPosition = tableTop + 25;
+  let yPosition = tableTop + 22;
 
+  // Items con espaciado optimizado
   dto.items.forEach((it, idx) => {
-    if (yPosition > 700) { // Nueva página si es necesario
-      doc.addPage();
-      yPosition = 50;
-    }
+    doc.fontSize(8);
+    doc.text(`${idx + 1}`, 55, yPosition, { width: 25 });
+    doc.text(it.description, 85, yPosition, { width: 160 });
+    doc.text(`${it.quantity}`, 250, yPosition, { width: 35 });
+    doc.text(`$${it.unitPrice.toFixed(2)}`, 290, yPosition, { width: 50 });
+    doc.text(`$${it.discount.toFixed(2)}`, 345, yPosition, { width: 40 });
+    doc.text(`$${it.subtotal.toFixed(2)}`, 390, yPosition, { width: 50 });
+    doc.text(`$${it.taxAmount.toFixed(2)}`, 445, yPosition, { width: 35 });
+    doc.text(`$${it.total.toFixed(2)}`, 485, yPosition, { width: 50, align: 'right' });
 
-    doc.fontSize(9);
-    doc.text(`${idx + 1}`, 55, yPosition, { width: 30 });
-    doc.text(it.description, 90, yPosition, { width: 180 });
-    doc.text(`${it.quantity}`, 275, yPosition, { width: 40 });
-    doc.text(`$${it.unitPrice.toFixed(2)}`, 320, yPosition, { width: 60 });
-    doc.text(`$${it.discount.toFixed(2)}`, 385, yPosition, { width: 45 });
-    doc.text(`$${it.subtotal.toFixed(2)}`, 435, yPosition, { width: 55 });
-    doc.text(`$${it.taxAmount.toFixed(2)}`, 495, yPosition, { width: 35 });
-    doc.text(`$${it.total.toFixed(2)}`, 535, yPosition, { width: 60, align: 'right' });
-
-    yPosition += 20;
+    yPosition += 16; // Espaciado más compacto
   });
 
-  doc.moveDown();
-  yPosition = doc.y;
-
-  // Línea divisoria
-  doc.moveTo(50, yPosition).lineTo(562, yPosition).stroke();
-
-  // === TOTALES ===
+  // === TOTALES (COMPACTOS) ===
   yPosition += 10;
-  doc.fontSize(10);
+  doc.moveTo(50, yPosition).lineTo(562, yPosition).stroke();
+  yPosition += 8;
+
+  doc.fontSize(9);
   doc.text('Subtotal:', 400, yPosition);
   doc.text(`$${dto.totals.subtotal.toFixed(2)}`, 480, yPosition, { align: 'right' });
 
-  yPosition += 15;
+  yPosition += 12;
   doc.text('IVA (13%):', 400, yPosition);
   doc.text(`$${dto.totals.taxTotal.toFixed(2)}`, 480, yPosition, { align: 'right' });
 
-  yPosition += 20;
-  doc.fontSize(12).font('Helvetica-Bold');
+  yPosition += 15;
+  doc.fontSize(11).font('Helvetica-Bold');
   doc.fillColor('#ff6b35');
   doc.text('TOTAL A PAGAR:', 400, yPosition);
   doc.text(`$${dto.totals.total.toFixed(2)}`, 480, yPosition, { align: 'right' });
 
-  // Total en letras
-  yPosition += 25;
-  doc.fontSize(9).fillColor('#333').font('Helvetica');
+  // === INFORMACIÓN ADICIONAL (COMPACTA) ===
+  yPosition += 20;
+  doc.fontSize(8).fillColor('#333').font('Helvetica');
   doc.text(`Son: ${dteDoc.resumen.totalLetras}`, 50, yPosition);
 
-  // === FORMA DE PAGO ===
-  yPosition += 20;
+  yPosition += 15;
   doc.text(`Forma de Pago: ${dto.paymentMethod || 'Efectivo'}`, 50, yPosition);
 
-  // === NOTAS ===
+  // === NOTAS (SI EXISTEN) ===
   if (dto.notes) {
-    yPosition += 20;
-    doc.fontSize(10).font('Helvetica-Bold').text('Notas:', 50, yPosition);
-    doc.fontSize(9).font('Helvetica').text(dto.notes, 50, yPosition + 12, { width: 500 });
+    yPosition += 15;
+    doc.fontSize(9).font('Helvetica-Bold').text('Notas:', 50, yPosition);
+    yPosition += 10;
+    doc.fontSize(8).font('Helvetica').text(dto.notes, 50, yPosition, { width: 500 });
   }
 
-  // === FOOTER ===
+  // === FOOTER FIJO ===
   const footerY = 720;
   doc.moveTo(50, footerY).lineTo(562, footerY).stroke();
-  doc.fontSize(8).fillColor('#666');
+  doc.fontSize(7).fillColor('#666');
   doc.text('Documento Tributario Electrónico - El Salvador', 50, footerY + 5, { align: 'center' });
-  doc.text('Sistema de Facturación Adventure Works', 50, footerY + 15, { align: 'center' });
-  doc.text(`Generado: ${new Date().toLocaleString()}`, 50, footerY + 25, { align: 'center' });
+  doc.text('Sistema de Facturación EleCtroZ', 50, footerY + 15, { align: 'center' });
+  doc.text(`Generado: ${new Date().toLocaleString('es-SV')}`, 50, footerY + 25, { align: 'center' });
 
   doc.end();
 });

@@ -12,10 +12,20 @@ export const InvoiceItemDto = z.object({
 export const CreateInvoiceDto = z.object({
   clientId: z.string(),
   type: z.enum(["ELECTRONIC", "TRADITIONAL"]),
+  documentType: z.enum(["FCF", "CCF"]).default("FCF"),
   paymentMethod: z.string().optional(),
   notes: z.string().optional(),
   items: z.array(InvoiceItemDto).min(1),
-});
+}).refine(
+  (data) => {
+    // If documentType is CCF, we need to validate that the client has NIT and NRC
+    // This validation will be done at the service layer with client data
+    return true;
+  },
+  {
+    message: "CCF requires client to have NIT and NRC",
+  }
+);
 
 export type CreateInvoiceInput = z.infer<typeof CreateInvoiceDto>;
 

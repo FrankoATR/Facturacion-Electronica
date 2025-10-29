@@ -1,11 +1,13 @@
 import { Router } from "express";
 import { authenticate, authorize } from "../../middleware/auth";
 import { invoiceController } from "../../modules/invoices/invoice.controller";
+import { metricsController } from "../../modules/invoices/metrics.controller";
 
 export const invoicesRouter = Router();
 
 invoicesRouter.use(authenticate, authorize(["ADMIN", "SELLER"]));
 
+invoicesRouter.get("/metrics", metricsController.getMetrics);
 invoicesRouter.get("/", invoiceController.list);
 invoicesRouter.post("/", invoiceController.create);
 invoicesRouter.post("/:id/issue", invoiceController.issue);

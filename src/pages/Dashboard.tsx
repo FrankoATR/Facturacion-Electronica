@@ -23,7 +23,8 @@ export const Dashboard: React.FC = () => {
   const { user } = useAuthStore();
   const { clients, fetchClients } = useClientStore();
   const { products, fetchProducts, getLowStockProducts } = useProductStore();
-  const [metrics, setMetrics] = useState<{ users?: number; clients?: number; products?: number; invoices?: number; salesToday?: number }>({});
+  const [metrics, setMetrics] = useState<{ users?: number; clients?: number; products?: number; invoices?: number; salesThisMonth?: number }>({});
+  const [monthlyBilling, setMonthlyBilling] = useState<number>(0);
   const [downloading, setDownloading] = useState(false);
 
   // Debug logs
@@ -38,16 +39,29 @@ export const Dashboard: React.FC = () => {
   useEffect(() => {
     fetchClients();
     fetchProducts();
+    
     // Cargar métricas reales desde backend (si el rol tiene acceso)
     const load = async () => {
       try {
-        const res = await apiFetch<{ users: number; clients: number; products: number; invoices: number; salesToday: number }>(`/dashboard/metrics`);
+        const res = await apiFetch<{ users: number; clients: number; products: number; invoices: number; salesThisMonth: number }>(`/dashboard/metrics`);
         setMetrics(res);
       } catch {
         // Silent: algunos roles podrían no tener acceso
       }
     };
+    
+    // Cargar facturación mensual
+    const loadMonthlyBilling = async () => {
+      try {
+        const res = await apiFetch<{ period: string; total: number; currency: string }>(`/invoices/metrics?period=month`);
+        setMonthlyBilling(res.total);
+      } catch {
+        // Silent: algunos roles podrían no tener acceso
+      }
+    };
+    
     load();
+    loadMonthlyBilling();
   }, [fetchClients, fetchProducts]);
 
   const handleBackupDownload = async () => {
@@ -85,10 +99,13 @@ export const Dashboard: React.FC = () => {
   const dashboardValues = {
     totalClients: metrics.clients ?? clients.length,
     totalProducts: metrics.products ?? products.length,
-    monthlyRevenue: metrics.salesToday ?? 0,
+    monthlyRevenue: monthlyBilling > 0 ? monthlyBilling : (metrics.salesThisMonth ?? 0),
     invoicesThisMonth: metrics.invoices ?? 0,
     pendingInvoices: 0
   };
+  
+  // Get current month name in Spanish
+  const currentMonth = new Date().toLocaleDateString('es-SV', { month: 'long', year: 'numeric' });
 
   const quickActions = [
     {
@@ -179,9 +196,10 @@ export const Dashboard: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Facturación del Mes</p>
-              <p className="text-2xl font-bold text-gray-900">
-                ${dashboardValues.monthlyRevenue.toLocaleString()}
+              <p className="text-2xl font-bold text-green-600">
+                ${dashboardValues.monthlyRevenue.toLocaleString('es-SV', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </p>
+              <p className="text-xs text-gray-500 mt-1 capitalize">{currentMonth}</p>
             </div>
             <DollarSign className="h-8 w-8 text-green-500" />
           </div>

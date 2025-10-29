@@ -1,8 +1,11 @@
 import { prisma } from "../../config/prisma";
+import { getMonthRange } from "../../common/date";
 
 export const dashboardRepository = {
   async metrics() {
-    const [users, clients, products, invoices, salesToday] = await Promise.all([
+    const { start, end } = getMonthRange();
+    
+    const [users, clients, products, invoices, salesThisMonth] = await Promise.all([
       prisma.user.count({ where: { isActive: true } }),
       prisma.client.count({}),
       prisma.product.count({ where: { status: "ACTIVE" } }),
@@ -12,13 +15,19 @@ export const dashboardRepository = {
         where: {
           status: "ISSUED",
           issuedAt: {
-            gte: new Date(new Date().setHours(0, 0, 0, 0)),
-            lt: new Date(new Date().setHours(24, 0, 0, 0)),
+            gte: start,
+            lte: end,
           },
         },
       }),
     ]);
-    return { users, clients, products, invoices, salesToday: (salesToday._sum.total as any) ?? 0 };
+    return { 
+      users, 
+      clients, 
+      products, 
+      invoices, 
+      salesThisMonth: Number(salesThisMonth._sum.total || 0) 
+    };
   },
 };
 
