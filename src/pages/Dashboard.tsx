@@ -1,5 +1,5 @@
 // TODO: validar vs PDF - Dashboard principal con resumen ejecutivo
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   Users, 
@@ -19,13 +19,58 @@ import { apiFetch } from '../lib/api';
 import { hasPermission } from '../config/permissions';
 import { showError, showSuccess } from '../lib/toast';
 
+type ClientInvoice = {
+  id: string;
+  number: string;
+  issuedAt?: string | null;
+  createdAt?: string | null;
+  status: string;
+  total: number;
+  type?: string | null;
+};
+
+const STATUS_STYLES: Record<string, { label: string; className: string }> = {
+  ISSUED: { label: 'Emitida', className: 'bg-green-100 text-green-700' },
+  DRAFT: { label: 'Borrador', className: 'bg-yellow-100 text-yellow-700' },
+  CANCELED: { label: 'Anulada', className: 'bg-red-100 text-red-700' },
+  ANNULLED: { label: 'Anulada', className: 'bg-red-100 text-red-700' },
+};
+
+const getStatusStyle = (status: string) => {
+  const normalized = (status || '').toUpperCase();
+  return STATUS_STYLES[normalized] ?? {
+    label: status || 'Desconocido',
+    className: 'bg-gray-100 text-gray-700',
+  };
+};
+
+const formatInvoiceDate = (value?: string | null) => {
+  if (!value) return '-';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '-';
+  return date.toLocaleDateString('es-SV');
+};
+
 export const Dashboard: React.FC = () => {
-  const { user } = useAuthStore();
+  const { user, token } = useAuthStore();
   const { clients, fetchClients } = useClientStore();
   const { products, fetchProducts, getLowStockProducts } = useProductStore();
   const [metrics, setMetrics] = useState<{ users?: number; clients?: number; products?: number; invoices?: number; salesThisMonth?: number }>({});
+  const [clientInvoices, setClientInvoices] = useState<ClientInvoice[]>([]);
+  const [clientInvoicesLoading, setClientInvoicesLoading] = useState(false);
+  const [clientInvoicesError, setClientInvoicesError] = useState<string | null>(null);
+  const [clientLinked, setClientLinked] = useState(true);
   const [monthlyBilling, setMonthlyBilling] = useState<number>(0);
   const [downloading, setDownloading] = useState(false);
+
+  const apiBaseUrl = useMemo(
+    () => import.meta.env.VITE_API_URL?.replace(/\/$/, '') || 'http://localhost:4000/api',
+    []
+  );
+  const downloadTokenParam = useMemo(() => {
+    const authToken = token || localStorage.getItem('auth-token') || '';
+    return authToken ? `?token=${encodeURIComponent(authToken)}` : '';
+  }, [token]);
 
   // Debug logs
   console.log('[DASHBOARD] Usuario actual:', user);
@@ -36,38 +81,85 @@ export const Dashboard: React.FC = () => {
     return <div>Cargando...</div>;
   }
 
+  const loadDashboardMetrics = useCallback(async () => {
+    try {
+      const res = await apiFetch<{ users: number; clients: number; products: number; invoices: number; salesThisMonth: number }>('/dashboard/metrics');
+      setMetrics(res);
+    } catch {
+      // Silent: algunos roles podrían no tener acceso
+    }
+  }, []);
+
+  const loadMonthlyBillingMetrics = useCallback(async () => {
+    try {
+      const res = await apiFetch<{ period: string; total: number; currency: string }>('/invoices/metrics?period=month');
+      setMonthlyBilling(res.total);
+    } catch {
+      // Silent: algunos roles podrían no tener acceso
+    }
+  }, []);
+
+  const loadClientInvoices = useCallback(async () => {
+    if (user?.role !== 'cliente') return;
+
+    setClientInvoicesLoading(true);
+    setClientInvoicesError(null);
+    try {
+      const res = await apiFetch<{ data: any[]; linked?: boolean }>('/portal/my/invoices');
+      const normalized: ClientInvoice[] = (res.data || []).map((invoice) => ({
+        id: invoice.id,
+        number: invoice.number,
+        issuedAt: invoice.issuedAt,
+        createdAt: invoice.createdAt,
+        status: invoice.status,
+        total: Number(invoice.total ?? 0),
+        type: invoice.type ?? null,
+      }));
+
+      setClientInvoices(normalized);
+      setClientLinked(res.linked !== false);
+    } catch (error) {
+      setClientInvoices([]);
+      setClientInvoicesError('No pudimos cargar tus facturas. Intenta de nuevo.');
+      console.error('Error loading client invoices:', error);
+    } finally {
+      setClientInvoicesLoading(false);
+    }
+  }, [user?.role]);
+
   useEffect(() => {
-    fetchClients();
-    fetchProducts();
-    
-    // Cargar métricas reales desde backend (si el rol tiene acceso)
-    const load = async () => {
-      try {
-        const res = await apiFetch<{ users: number; clients: number; products: number; invoices: number; salesThisMonth: number }>(`/dashboard/metrics`);
-        setMetrics(res);
-      } catch {
-        // Silent: algunos roles podrían no tener acceso
-      }
-    };
-    
-    // Cargar facturación mensual
-    const loadMonthlyBilling = async () => {
-      try {
-        const res = await apiFetch<{ period: string; total: number; currency: string }>(`/invoices/metrics?period=month`);
-        setMonthlyBilling(res.total);
-      } catch {
-        // Silent: algunos roles podrían no tener acceso
-      }
-    };
-    
-    load();
-    loadMonthlyBilling();
-  }, [fetchClients, fetchProducts]);
+    if (!user) return;
+
+    if (user.role === 'cliente') {
+      loadClientInvoices();
+      return;
+    }
+
+    if (hasPermission(user.role, 'clientes', 'read')) {
+      fetchClients();
+    }
+
+    if (hasPermission(user.role, 'inventario', 'read')) {
+      fetchProducts();
+    }
+
+    if (hasPermission(user.role, 'dashboard', 'read')) {
+      loadDashboardMetrics();
+      loadMonthlyBillingMetrics();
+    }
+  }, [
+    user,
+    fetchClients,
+    fetchProducts,
+    loadDashboardMetrics,
+    loadMonthlyBillingMetrics,
+    loadClientInvoices
+  ]);
 
   const handleBackupDownload = async () => {
     try {
       setDownloading(true);
-      const response = await fetch(`${import.meta.env.VITE_API_URL?.replace(/\/$/, '')}/admin/backup/invoices`, {
+      const response = await fetch(`${apiBaseUrl}/admin/backup/invoices`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('auth-token')}`,
         },
@@ -107,45 +199,61 @@ export const Dashboard: React.FC = () => {
   // Get current month name in Spanish
   const currentMonth = new Date().toLocaleDateString('es-SV', { month: 'long', year: 'numeric' });
 
-  const quickActions = user.role === 'cliente' ? [] : [
-    {
-      title: 'Nueva Factura',
-      description: 'Crear factura electrónica o tradicional',
-      icon: Plus,
-      to: '/facturacion/nueva',
-      color: 'bg-blue-500 hover:bg-blue-600',
-      module: 'facturacion',
-      action: 'create'
-    },
-    {
-      title: 'Agregar Cliente',
-      description: 'Registrar nuevo cliente',
-      icon: Users,
-      to: '/clientes/nuevo',
-      color: 'bg-green-500 hover:bg-green-600',
-      module: 'clientes',
-      action: 'create'
-    },
-    {
-      title: 'Gestionar Inventario',
-      description: 'Actualizar productos y stock',
-      icon: Package,
-      to: '/inventario',
-      color: 'bg-purple-500 hover:bg-purple-600',
-      module: 'inventario',
-      action: 'read'
-    }
-  ];
+  const quickActions = user.role === 'cliente'
+    ? [
+        {
+          title: 'Ver mis facturas',
+          description: 'Descarga tus comprobantes en PDF',
+          icon: FileText,
+          href: '#mis-facturas',
+          color: 'bg-blue-600 hover:bg-blue-700',
+          module: 'dashboard',
+          action: 'read' as const
+        }
+      ]
+    : [
+        {
+          title: 'Nueva Factura',
+          description: 'Crear factura electrónica o tradicional',
+          icon: Plus,
+          to: '/facturacion/nueva',
+          color: 'bg-blue-500 hover:bg-blue-600',
+          module: 'facturacion',
+          action: 'create' as const
+        },
+        {
+          title: 'Agregar Cliente',
+          description: 'Registrar nuevo cliente',
+          icon: Users,
+          to: '/clientes/nuevo',
+          color: 'bg-green-500 hover:bg-green-600',
+          module: 'clientes',
+          action: 'create' as const
+        },
+        {
+          title: 'Gestionar Inventario',
+          description: 'Actualizar productos y stock',
+          icon: Package,
+          to: '/inventario',
+          color: 'bg-purple-500 hover:bg-purple-600',
+          module: 'inventario',
+          action: 'read' as const
+        }
+      ];
+
+  const allowedQuickActions = quickActions.filter((action) =>
+    hasPermission(user.role, action.module, action.action)
+  );
 
   const moduleCards = user.role === 'cliente' ? [
     {
       title: 'Mis Facturas',
       description: 'Ver facturas emitidas',
       icon: FileText,
-      to: '/historial',
-      count: 0, // Los clientes no deberían ver métricas globales
+      to: '/dashboard#mis-facturas',
+      count: clientInvoices.length, // Mostrar el número real de facturas del cliente
       color: 'text-purple-600 bg-purple-100',
-      module: 'historial',
+      module: 'dashboard',
       action: 'read'
     }
   ] : [
@@ -154,7 +262,7 @@ export const Dashboard: React.FC = () => {
       description: 'Gestionar base de clientes',
       icon: Users,
       to: '/clientes',
-      count: metrics.totalClients,
+      count: dashboardValues.totalClients,
       color: 'text-blue-600 bg-blue-100',
       module: 'clientes',
       action: 'read'
@@ -164,7 +272,7 @@ export const Dashboard: React.FC = () => {
       description: 'Control de productos y stock',
       icon: Package,
       to: '/inventario',
-      count: metrics.totalProducts,
+      count: dashboardValues.totalProducts,
       color: 'text-green-600 bg-green-100',
       module: 'inventario',
       action: 'read'
@@ -174,7 +282,7 @@ export const Dashboard: React.FC = () => {
       description: 'Emitir facturas',
       icon: FileText,
       to: '/facturacion',
-      count: metrics.invoicesThisMonth,
+      count: dashboardValues.invoicesThisMonth,
       color: 'text-purple-600 bg-purple-100',
       module: 'facturacion',
       action: 'read'
@@ -184,7 +292,7 @@ export const Dashboard: React.FC = () => {
       description: 'Consultar ventas realizadas',
       icon: History,
       to: '/historial',
-      count: metrics.pendingInvoices,
+      count: dashboardValues.pendingInvoices,
       color: 'text-orange-600 bg-orange-100',
       module: 'historial',
       action: 'read'
@@ -194,15 +302,117 @@ export const Dashboard: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Welcome Section */}
-      <div className="bg-gradient-to-r from-blue-600 to-blue-800 rounded-lg p-6 text-white">
-        <h1 className="text-2xl font-bold">¡Bienvenido, {user?.name}!</h1>
+      <div className={`rounded-lg p-6 text-white ${
+        user?.role === 'cliente'
+          ? 'bg-gradient-to-r from-green-600 to-green-800'
+          : 'bg-gradient-to-r from-blue-600 to-blue-800'
+      }`}>
+        <h1 className="text-2xl font-bold">
+          {user?.role === 'cliente' ? `¡Hola, ${user?.name}!` : `¡Bienvenido, ${user?.name}!`}
+        </h1>
         <p className="mt-2 opacity-90">
           {user?.role === 'cliente'
-            ? 'Portal del Cliente - Consulta tus facturas'
-            : `Sistema de Facturación - Rol: ${user?.role === 'administrador' ? 'Administrador' : user?.role === 'vendedor' ? 'Vendedor' : user?.role === 'contador' ? 'Contador' : 'Auditor'}`
+            ? 'Portal del Cliente - Gestiona tus facturas electrónicas'
+            : `Sistema de Facturación EleCtroZ - Rol: ${user?.role === 'administrador' ? 'Administrador' : user?.role === 'vendedor' ? 'Vendedor' : user?.role === 'contador' ? 'Contador' : 'Auditor'}`
           }
         </p>
       </div>
+
+      {/* Client Invoice Summary */}
+      {user.role === 'cliente' && (
+        <div id="mis-facturas" className="bg-white p-6 rounded-lg shadow-sm border">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">Mis Facturas</h2>
+              <p className="text-sm text-gray-600">Consulta tus facturas emitidas y descarga los comprobantes en PDF.</p>
+            </div>
+            <button
+              onClick={loadClientInvoices}
+              disabled={clientInvoicesLoading}
+              className="inline-flex items-center px-4 py-2 text-sm font-medium rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {clientInvoicesLoading ? (
+                <>
+                  <span className="animate-spin h-4 w-4 border-2 border-gray-400 border-t-transparent rounded-full mr-2"></span>
+                  Actualizando...
+                </>
+              ) : (
+                <>
+                  <Download size={16} className="mr-2" />
+                  Actualizar
+                </>
+              )}
+            </button>
+          </div>
+
+          {clientInvoicesError && (
+            <div className="mt-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
+              {clientInvoicesError}
+            </div>
+          )}
+
+          {clientInvoicesLoading ? (
+            <div className="flex items-center justify-center py-10">
+              <span className="animate-spin h-6 w-6 border-2 border-blue-500 border-t-transparent rounded-full mr-3"></span>
+              <span className="text-sm text-gray-600">Cargando tus facturas...</span>
+            </div>
+          ) : clientInvoices.length > 0 ? (
+            <div className="mt-4 overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr className="text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                    <th className="px-4 py-3">Número</th>
+                    <th className="px-4 py-3">Fecha</th>
+                    <th className="px-4 py-3">Total</th>
+                    <th className="px-4 py-3">Estado</th>
+                    <th className="px-4 py-3 text-center">Descargar</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-100">
+                  {clientInvoices.map((invoice) => {
+                    const statusInfo = getStatusStyle(invoice.status);
+                    const pdfUrl = `${apiBaseUrl}/dte/${invoice.id}/pdf${downloadTokenParam}`;
+                    const invoiceDate = formatInvoiceDate(invoice.issuedAt || invoice.createdAt);
+                    const totalDisplay = Number.isFinite(invoice.total)
+                      ? invoice.total.toFixed(2)
+                      : Number(invoice.total || 0).toFixed(2);
+
+                    return (
+                      <tr key={invoice.id} className="text-sm text-gray-700">
+                        <td className="px-4 py-3 font-medium text-gray-900">{invoice.number}</td>
+                        <td className="px-4 py-3">{invoiceDate}</td>
+                        <td className="px-4 py-3 font-medium text-gray-900">${totalDisplay}</td>
+                        <td className="px-4 py-3">
+                          <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${statusInfo.className}`}>
+                            {statusInfo.label}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <a
+                            href={pdfUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                          >
+                            <Download size={14} className="mr-1.5" />
+                            PDF
+                          </a>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="mt-6 text-sm text-gray-500 text-center border border-dashed border-gray-200 rounded-lg py-6">
+              {clientLinked
+                ? 'Aún no tienes facturas emitidas en el sistema.'
+                : 'Tu cuenta todavía no está vinculada a un cliente. Contacta al administrador para vincularla.'}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Metrics Cards - Only for non-customer users */}
       {user.role !== 'cliente' && (
@@ -314,27 +524,46 @@ export const Dashboard: React.FC = () => {
           <h2 className="text-lg font-semibold text-gray-900 mb-4">
             {user.role === 'cliente' ? 'Mis Opciones' : 'Acciones Rápidas'}
           </h2>
-          <div className="space-y-3">
-            {quickActions.map((action) => {
-      const canPerform = user && hasPermission(user.role, action.module, action.action);
-              
-              if (!canPerform) return null;
+          {allowedQuickActions.length > 0 ? (
+            <div className="space-y-3">
+              {allowedQuickActions.map((action) => {
+                const key = action.to || action.href || action.title;
+                const content = (
+                  <>
+                    <action.icon className="h-5 w-5 mr-3" />
+                    <div>
+                      <p className="font-medium">{action.title}</p>
+                      <p className="text-sm opacity-90">{action.description}</p>
+                    </div>
+                  </>
+                );
 
-              return (
-                <Link
-                  key={action.to}
-                  to={action.to}
-                  className={`flex items-center p-3 rounded-lg ${action.color} text-white transition-colors`}
-                >
-                  <action.icon className="h-5 w-5 mr-3" />
-                  <div>
-                    <p className="font-medium">{action.title}</p>
-                    <p className="text-sm opacity-90">{action.description}</p>
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
+                if ('href' in action && action.href) {
+                  return (
+                    <a
+                      key={key}
+                      href={action.href}
+                      className={`flex items-center p-3 rounded-lg ${action.color} text-white transition-colors`}
+                    >
+                      {content}
+                    </a>
+                  );
+                }
+
+                return (
+                  <Link
+                    key={key}
+                    to={action.to!}
+                    className={`flex items-center p-3 rounded-lg ${action.color} text-white transition-colors`}
+                  >
+                    {content}
+                  </Link>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="text-sm text-gray-500">No hay acciones disponibles.</p>
+          )}
         </div>
 
         {/* Module Access */}

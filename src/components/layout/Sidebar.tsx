@@ -90,8 +90,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
             <ul className="space-y-2">
               {navItems.map((item) => {
                 // SSDLC Touchpoint: Control de visibilidad por permisos
-                const canAccess = user && hasPermission(user.role, item.module, item.action);
-                
+                let canAccess = user && hasPermission(user.role, item.module, item.action);
+
+                // Control especial para TestSMTP - solo para administradores y vendedores
+                if (item.to === '/test-smtp') {
+                  canAccess = user && (user.role === 'administrador' || user.role === 'vendedor') && hasPermission(user.role, item.module, item.action);
+                }
+
                 if (!canAccess) return null;
 
                 return (

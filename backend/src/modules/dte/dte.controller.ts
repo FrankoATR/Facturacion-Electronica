@@ -4,6 +4,9 @@ import { fromInvoiceToDTE } from "./dte.mapper";
 import { signDTEWithAES, generateControlCode, generateElectronicSeal, verifyDTESignature } from "./dte-crypto";
 import { appendAuditLog } from "../../common/audit";
 import { DTEAnnulRequest } from "./dte.types";
+import { emailService } from "../email/email.service";
+import { buildInvoiceDto, buildDTEDocument } from "./dte.service";
+import { generateInvoicePdfBuffer } from "./pdf-renderer";
 
 export const dteController = {
   /**
@@ -172,6 +175,39 @@ export const dteController = {
           controlCode,
         },
       });
+
+      // Intentar enviar la factura por correo al cliente
+      if (updatedInvoice.client?.email) {
+        try {
+          const [dto, dteDoc] = await Promise.all([
+            buildInvoiceDto(invoiceId),
+            buildDTEDocument(invoiceId),
+          ]);
+
+          if (dto && dteDoc) {
+            const pdfBuffer = await generateInvoicePdfBuffer(dto, dteDoc);
+            const emailResult = await emailService.sendInvoiceEmail(
+              updatedInvoice.client.email,
+              updatedInvoice.number,
+              updatedInvoice.client.name,
+              Number(updatedInvoice.total),
+              pdfBuffer
+            );
+
+            if (!emailResult.success) {
+              console.error(`[DTE] Error al enviar correo de factura ${updatedInvoice.number}:`, emailResult.error);
+            } else {
+              console.log(`[DTE] Correo de factura ${updatedInvoice.number} enviado a ${updatedInvoice.client.email}`);
+            }
+          } else {
+            console.warn(`[DTE] No se pudo generar DTO o DTE para enviar factura ${updatedInvoice.number} por correo`);
+          }
+        } catch (emailError) {
+          console.error("[DTE] Error al generar o enviar correo de factura:", emailError);
+        }
+      } else {
+        console.log(`[DTE] Factura ${updatedInvoice.number} firmada sin correo de cliente disponible, no se envía email`);
+      }
 
       return res.json({
         message: "DTE signed successfully",
