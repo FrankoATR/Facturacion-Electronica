@@ -112,13 +112,13 @@ export default function App() {
               </ProtectedRoute>
             } 
           />
-          <Route 
-            path="test-smtp/*" 
+          <Route
+            path="test-smtp/*"
             element={
-              <ProtectedRoute requiredModule="dashboard">
+              <ProtectedRoute requiredRoles={['administrador', 'vendedor']}>
                 <TestSMTP />
               </ProtectedRoute>
-            } 
+            }
           />
         </Route>
         

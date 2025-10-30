@@ -1,4 +1,3 @@
-import { v4 as uuidv4 } from "uuid";
 import crypto from "crypto";
 
 // Estructura oficial del DTE de El Salvador según especificaciones del Ministerio de Hacienda
@@ -133,7 +132,7 @@ export function generateControlNumber(sequence: number): string {
 
 export function generateCodigoGeneracion(): string {
   // UUID único para el DTE
-  return uuidv4().toUpperCase();
+  return crypto.randomUUID().toUpperCase();
 }
 
 export function numberToWords(num: number): string {

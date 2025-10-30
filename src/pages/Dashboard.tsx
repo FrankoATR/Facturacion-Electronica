@@ -107,7 +107,7 @@ export const Dashboard: React.FC = () => {
   // Get current month name in Spanish
   const currentMonth = new Date().toLocaleDateString('es-SV', { month: 'long', year: 'numeric' });
 
-  const quickActions = [
+  const quickActions = user.role === 'cliente' ? [] : [
     {
       title: 'Nueva Factura',
       description: 'Crear factura electrónica o tradicional',
@@ -137,7 +137,18 @@ export const Dashboard: React.FC = () => {
     }
   ];
 
-  const moduleCards = [
+  const moduleCards = user.role === 'cliente' ? [
+    {
+      title: 'Mis Facturas',
+      description: 'Ver facturas emitidas',
+      icon: FileText,
+      to: '/historial',
+      count: 0, // Los clientes no deberían ver métricas globales
+      color: 'text-purple-600 bg-purple-100',
+      module: 'historial',
+      action: 'read'
+    }
+  ] : [
     {
       title: 'Clientes',
       description: 'Gestionar base de clientes',
@@ -186,12 +197,16 @@ export const Dashboard: React.FC = () => {
       <div className="bg-gradient-to-r from-blue-600 to-blue-800 rounded-lg p-6 text-white">
         <h1 className="text-2xl font-bold">¡Bienvenido, {user?.name}!</h1>
         <p className="mt-2 opacity-90">
-          Sistema de Facturación - Rol: {user?.role === 'administrador' ? 'Administrador' : 'Vendedor'}
+          {user?.role === 'cliente'
+            ? 'Portal del Cliente - Consulta tus facturas'
+            : `Sistema de Facturación - Rol: ${user?.role === 'administrador' ? 'Administrador' : user?.role === 'vendedor' ? 'Vendedor' : user?.role === 'contador' ? 'Contador' : 'Auditor'}`
+          }
         </p>
       </div>
 
-      {/* Metrics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      {/* Metrics Cards - Only for non-customer users */}
+      {user.role !== 'cliente' && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <div className="bg-white p-6 rounded-lg shadow-sm border">
           <div className="flex items-center justify-between">
             <div>
@@ -235,9 +250,10 @@ export const Dashboard: React.FC = () => {
           </div>
         </div>
       </div>
+      )}
 
-      {/* Alerts */}
-      {lowStockProducts.length > 0 && (
+      {/* Alerts - Only for non-customer users */}
+      {user.role !== 'cliente' && lowStockProducts.length > 0 && (
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
           <div className="flex items-center">
             <AlertTriangle className="h-5 w-5 text-yellow-600 mr-3" />
@@ -295,7 +311,9 @@ export const Dashboard: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Quick Actions */}
         <div className="bg-white p-6 rounded-lg shadow-sm border">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Acciones Rápidas</h2>
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">
+            {user.role === 'cliente' ? 'Mis Opciones' : 'Acciones Rápidas'}
+          </h2>
           <div className="space-y-3">
             {quickActions.map((action) => {
       const canPerform = user && hasPermission(user.role, action.module, action.action);
@@ -321,7 +339,9 @@ export const Dashboard: React.FC = () => {
 
         {/* Module Access */}
         <div className="bg-white p-6 rounded-lg shadow-sm border">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Módulos del Sistema</h2>
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">
+            {user.role === 'cliente' ? 'Mis Accesos' : 'Módulos del Sistema'}
+          </h2>
           <div className="grid grid-cols-2 gap-4">
             {moduleCards.map((module) => {
       const canAccess = user && hasPermission(user.role, module.module, module.action);

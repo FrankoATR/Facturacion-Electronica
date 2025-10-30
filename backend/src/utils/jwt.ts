@@ -29,7 +29,7 @@ export function signToken(payload: JwtPayload, expiresIn?: string): string {
       expiresIn: expiresIn || env.jwtExpiresIn,
       issuer: "facturacion-system",
       audience: "facturacion-api"
-    }
+    } as jwt.SignOptions
   );
 }
 
@@ -46,7 +46,7 @@ export function signRefreshToken(payload: JwtPayload): string {
       expiresIn: env.jwtRefreshExpiresIn,
       issuer: "facturacion-system",
       audience: "facturacion-api"
-    }
+    } as jwt.SignOptions
   );
 }
 

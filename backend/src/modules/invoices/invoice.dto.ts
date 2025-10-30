@@ -11,7 +11,7 @@ export const InvoiceItemDto = z.object({
 
 export const CreateInvoiceDto = z.object({
   clientId: z.string(),
-  type: z.enum(["ELECTRONIC", "TRADITIONAL"]),
+  type: z.enum(["ELECTRONIC", "TRADITIONAL", "CREDIT_FISCAL"]),
   documentType: z.enum(["FCF", "CCF"]).default("FCF"),
   paymentMethod: z.string().optional(),
   notes: z.string().optional(),

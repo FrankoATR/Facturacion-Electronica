@@ -162,18 +162,7 @@ export const invoiceService = {
         }
       }
 
-      const dtePayload = fromInvoiceToDTE(inv as any);
-      await tx.invoice.update({
-        where: { id: inv.id },
-        data: {
-          dteJson: dtePayload as any,
-        },
-      });
-
-      return {
-        ...inv,
-        dteJson: dtePayload as any,
-      };
+      return inv;
     });
 
     // Verificar stock bajo para cada producto vendido
@@ -194,8 +183,43 @@ export const invoiceService = {
   },
 
   async issue(id: string) {
-    const inv = await prisma.invoice.update({ where: { id }, data: { status: "ISSUED", issuedAt: new Date() } });
-    return mapInvoiceNumbers(inv);
+    // First update the invoice to set issuedAt
+    const issuedAt = new Date();
+    await prisma.invoice.update({
+      where: { id },
+      data: {
+        status: "ISSUED",
+        issuedAt,
+      },
+    });
+
+    // Now fetch the complete invoice with issuedAt set
+    const inv = await prisma.invoice.findUnique({
+      where: { id },
+      include: {
+        items: {
+          include: {
+            product: true,
+          },
+        },
+        client: true,
+      },
+    });
+
+    if (!inv) throw new Error("Invoice not found");
+
+    // Generate DTE now that the invoice has issuedAt
+    const dtePayload = fromInvoiceToDTE(inv as any);
+
+    // Update with DTE data
+    await prisma.invoice.update({
+      where: { id },
+      data: {
+        dteJson: dtePayload as any,
+      },
+    });
+
+    return mapInvoiceNumbers({ ...inv, dteJson: dtePayload });
   },
 
   async cancel(userId: string | undefined, id: string, cancellationReason: string) {

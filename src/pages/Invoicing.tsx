@@ -1,10 +1,6 @@
 // TODO: validar vs PDF - Módulo de Facturación (electrónica y tradicional)
 import React, { useEffect, useState } from 'react';
-<<<<<<< HEAD
 import { Plus, Search, FileText, Eye, X, XCircle, Shield } from 'lucide-react';
-=======
-import { Plus, Search, FileText, Eye, X, Trash2, Printer } from 'lucide-react';
->>>>>>> baaeab5 (feat: Implementación completa de mejoras y nuevas funcionalidades del sistema)
 import { useInvoiceStore } from '../stores/invoiceStore';
 import { useClientStore } from '../stores/clientStore';
 import { useProductStore } from '../stores/productStore';
@@ -49,26 +45,21 @@ export const Invoicing: React.FC = () => {
   const [isAnnulModalOpen, setIsAnnulModalOpen] = useState(false);
   const [isSignDTEModalOpen, setIsSignDTEModalOpen] = useState(false);
   const [viewingInvoice, setViewingInvoice] = useState<Invoice | null>(null);
-<<<<<<< HEAD
   const [annullingInvoice, setAnnullingInvoice] = useState<Invoice | null>(null);
   const [signingInvoice, setSigningInvoice] = useState<Invoice | null>(null);
-=======
-  const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
-  const [invoiceToCancel, setInvoiceToCancel] = useState<Invoice | null>(null);
-  const [cancellationReason, setCancellationReason] = useState('');
-  const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
->>>>>>> baaeab5 (feat: Implementación completa de mejoras y nuevas funcionalidades del sistema)
   const [selectedProduct, setSelectedProduct] = useState<string>('');
   const [itemQuantity, setItemQuantity] = useState<number>(1);
   const [itemDiscount, setItemDiscount] = useState<number>(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedClientId, setSelectedClientId] = useState<string>('');
   const [pendingInvoiceData, setPendingInvoiceData] = useState<any>(null);
+  const [draftInvoiceId, setDraftInvoiceId] = useState<string | null>(null);
   const [isAnnulling, setIsAnnulling] = useState(false);
   const itemsPerPage = 10;
 
   const canCreate = user && hasPermission(user.role, 'facturacion', 'create');
   const canUpdate = user && hasPermission(user.role, 'facturacion', 'update');
+  const canRead = user && hasPermission(user.role, 'facturacion', 'read');
 
   const {
     register,
@@ -243,21 +234,31 @@ export const Invoicing: React.FC = () => {
     if (!pendingInvoiceData) return;
 
     try {
-      await createInvoice(pendingInvoiceData);
-      showSuccess('Factura creada en borrador');
+      // Create invoice in draft first
+      const created = await createInvoice(pendingInvoiceData);
+      const draftId = created.id;
+      setDraftInvoiceId(draftId);
+
+      // Then issue the invoice
+      await updateInvoice(draftId, { status: 'emmited' });
+
+      showSuccess('Factura emitida exitosamente');
       setIsPreviewModalOpen(false);
       handleCloseCreateModal();
       setPendingInvoiceData(null);
+      setDraftInvoiceId(null);
+      // Refresh the invoices list
+      fetchInvoices();
     } catch (error: any) {
-      console.error('Error al crear factura:', error);
-      const errorMessage = error.message || 'Error al crear factura';
-      showError(`Error al crear factura: ${errorMessage}`);
+      console.error('Error al emitir factura:', error);
+      const errorMessage = error.message || 'Error al emitir factura';
+      showError(`Error: ${errorMessage}`);
     }
   };
 
   const handleClosePreview = () => {
     setIsPreviewModalOpen(false);
-    // Don't clear pendingInvoiceData in case user wants to edit and try again
+    setPendingInvoiceData(null);
   };
 
   const handleViewInvoice = (invoice: Invoice) => {
@@ -265,7 +266,6 @@ export const Invoicing: React.FC = () => {
     setIsViewModalOpen(true);
   };
 
-<<<<<<< HEAD
   const handleOpenAnnulModal = (invoice: Invoice) => {
     setAnnullingInvoice(invoice);
     setIsAnnulModalOpen(true);
@@ -312,35 +312,6 @@ export const Invoicing: React.FC = () => {
     await fetchInvoices(); // Refresh the list
   };
 
-=======
-  const handleOpenCancelModal = (invoice: Invoice) => {
-    setInvoiceToCancel(invoice);
-    setCancellationReason('');
-    setIsCancelModalOpen(true);
-  };
-
-  const handleCancelInvoice = async () => {
-    if (!invoiceToCancel || !cancellationReason.trim()) {
-      showError('La observación es obligatoria para anular una factura');
-      return;
-    }
-
-    try {
-      await updateInvoice(invoiceToCancel.id, { 
-        status: 'anulada' as any, 
-        cancellationReason: cancellationReason.trim() 
-      });
-      showSuccess('Factura anulada exitosamente');
-      setIsCancelModalOpen(false);
-      setInvoiceToCancel(null);
-      setCancellationReason('');
-      fetchInvoices();
-    } catch (error: any) {
-      showError(error.message || 'Error al anular factura');
-    }
-  };
-
->>>>>>> baaeab5 (feat: Implementación completa de mejoras y nuevas funcionalidades del sistema)
   const getClientName = (clientId: string) => {
     const client = clients.find(c => c.id === clientId);
     return client?.name || 'Cliente no encontrado';
@@ -398,7 +369,6 @@ export const Invoicing: React.FC = () => {
     {
       key: 'actions',
       header: 'Acciones',
-<<<<<<< HEAD
       render: (invoice: Invoice) => {
         const statusNormalized = (invoice.status || '').toString().toLowerCase();
         const hasSignature = !!invoice.dteSignature;
@@ -407,11 +377,11 @@ export const Invoicing: React.FC = () => {
 
         return (
           <div className="flex space-x-2">
-            {hasSignature && (
+            {canRead && (
               <button
                 onClick={() => handleViewInvoice(invoice)}
                 className="text-blue-600 hover:text-blue-800"
-                title="Ver/Descargar DTE"
+                title="Ver Factura"
               >
                 <Eye size={16} />
               </button>
@@ -437,28 +407,6 @@ export const Invoicing: React.FC = () => {
           </div>
         );
       }
-=======
-      render: (invoice: Invoice) => (
-        <div className="flex space-x-2">
-          <button
-            onClick={() => handleViewInvoice(invoice)}
-            className="text-blue-600 hover:text-blue-800"
-            title="Ver/Descargar DTE"
-          >
-            <Eye size={16} />
-          </button>
-          {canUpdate && invoice.status !== 'anulada' && invoice.status !== 'CANCELED' && (
-            <button
-              onClick={() => handleOpenCancelModal(invoice)}
-              className="text-red-600 hover:text-red-800"
-              title="Anular Factura"
-            >
-              <Trash2 size={16} />
-            </button>
-          )}
-          </div>
-      )
->>>>>>> baaeab5 (feat: Implementación completa de mejoras y nuevas funcionalidades del sistema)
     }
   ];
 
@@ -718,6 +666,16 @@ export const Invoicing: React.FC = () => {
               variant="secondary"
               onClick={() => {
                 if (currentInvoice && currentInvoice.items.length > 0) {
+                  // Build invoice data for preview
+                  const invoiceData = {
+                    clientId: selectedClientId,
+                    type: watch('type'),
+                    documentType: watch('type') === 'electronica' ? 'FCF' : 'Tradicional',
+                    paymentMethod: watch('paymentMethod'),
+                    notes: watch('notes'),
+                    items: currentInvoice.items
+                  };
+                  setPendingInvoiceData(invoiceData);
                   setIsPreviewModalOpen(true);
                 } else {
                   showError('Debe agregar al menos un item a la factura para previsualizar');
@@ -729,8 +687,8 @@ export const Invoicing: React.FC = () => {
               Previsualizar
             </Button>
             <Button type="submit" loading={isSubmitting}>
-              <Eye size={16} className="mr-2" />
-              Previsualizar
+              <Plus size={16} className="mr-2" />
+              Crear Factura
             </Button>
           </div>
         </form>
@@ -831,7 +789,6 @@ export const Invoicing: React.FC = () => {
         )}
       </Modal>
 
-<<<<<<< HEAD
       {/* Invoice Preview Modal */}
       {pendingInvoiceData && (
         <InvoicePreviewModal
@@ -867,192 +824,6 @@ export const Invoicing: React.FC = () => {
         invoice={signingInvoice}
         onSuccess={handleSignDTESuccess}
       />
-=======
-      {/* Cancel Invoice Modal */}
-      <Modal
-        isOpen={isCancelModalOpen}
-        onClose={() => {
-          setIsCancelModalOpen(false);
-          setInvoiceToCancel(null);
-          setCancellationReason('');
-        }}
-        title={`Anular Factura ${invoiceToCancel?.number}`}
-        size="md"
-      >
-        <div className="space-y-4">
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-            <p className="text-sm text-yellow-800">
-              <strong>⚠️ Atención:</strong> Al anular esta factura, se restaurará el stock de los productos y se registrará una observación contable. Esta acción no se puede deshacer.
-            </p>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Observación <span className="text-red-500">*</span>
-            </label>
-            <textarea
-              value={cancellationReason}
-              onChange={(e) => setCancellationReason(e.target.value)}
-              rows={4}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-              placeholder="Ingrese el motivo de la anulación de la factura..."
-              required
-            />
-            <p className="mt-1 text-xs text-gray-500">
-              Este motivo será registrado en el sistema contable y visible en la bitácora de auditoría.
-            </p>
-          </div>
-
-          <div className="flex justify-end space-x-3 pt-4">
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => {
-                setIsCancelModalOpen(false);
-                setInvoiceToCancel(null);
-                setCancellationReason('');
-              }}
-            >
-              Cancelar
-            </Button>
-            <Button
-              type="button"
-              onClick={handleCancelInvoice}
-              disabled={!cancellationReason.trim()}
-              className="bg-red-600 hover:bg-red-700"
-            >
-              Anular Factura
-            </Button>
-          </div>
-        </div>
-      </Modal>
-
-      {/* Preview Invoice Modal */}
-      <Modal
-        isOpen={isPreviewModalOpen}
-        onClose={() => setIsPreviewModalOpen(false)}
-        title="Previsualización de Factura"
-        size="xl"
-      >
-        {currentInvoice && (
-          <div className="space-y-6">
-            {/* Header de la factura */}
-            <div className="bg-gradient-to-r from-orange-500 to-orange-600 text-white p-6 rounded-lg text-center">
-              <h2 className="text-2xl font-bold mb-2">⚡ EleCtroZ</h2>
-              <p className="text-sm opacity-90">EleCtroZ S.A. DE C.V.</p>
-              <p className="text-xs mt-1 opacity-80">NIT: 0614-031289-001-9 | NRC: 12345-6</p>
-            </div>
-
-            {/* Información de la factura */}
-            <div className="grid grid-cols-2 gap-6">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2 border-b pb-2">Cliente</h3>
-                <p className="text-sm text-gray-600">
-                  <span className="font-medium">Nombre:</span> {getClientName(watchedClientId || selectedClientId)}
-                </p>
-                <p className="text-sm text-gray-600">
-                  <span className="font-medium">Tipo:</span> {
-                    watch('type') === 'electronica' ? 'Electrónica' : 
-                    watch('type') === 'credito_fiscal' ? 'Crédito Fiscal' : 
-                    'Tradicional'
-                  }
-                </p>
-                <p className="text-sm text-gray-600">
-                  <span className="font-medium">Método de Pago:</span> {watch('paymentMethod') || 'Efectivo'}
-                </p>
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2 border-b pb-2">Factura</h3>
-                <p className="text-sm text-gray-600">
-                  <span className="font-medium">Número:</span> BORRADOR
-                </p>
-                <p className="text-sm text-gray-600">
-                  <span className="font-medium">Fecha:</span> {new Date().toLocaleDateString()}
-                </p>
-                <p className="text-sm text-gray-600">
-                  <span className="font-medium">Hora:</span> {new Date().toLocaleTimeString()}
-                </p>
-              </div>
-            </div>
-
-            {/* Tabla de items */}
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-3 border-b pb-2">
-                Detalle de Productos/Servicios
-              </h3>
-              <div className="overflow-x-auto">
-                <table className="min-w-full border-collapse">
-                  <thead>
-                    <tr className="bg-gray-100">
-                      <th className="border border-gray-300 px-3 py-2 text-left text-xs font-semibold text-gray-700">No.</th>
-                      <th className="border border-gray-300 px-3 py-2 text-left text-xs font-semibold text-gray-700">Descripción</th>
-                      <th className="border border-gray-300 px-3 py-2 text-center text-xs font-semibold text-gray-700">Cant.</th>
-                      <th className="border border-gray-300 px-3 py-2 text-right text-xs font-semibold text-gray-700">P. Unit.</th>
-                      <th className="border border-gray-300 px-3 py-2 text-right text-xs font-semibold text-gray-700">Desc.</th>
-                      <th className="border border-gray-300 px-3 py-2 text-right text-xs font-semibold text-gray-700">Subtotal</th>
-                      <th className="border border-gray-300 px-3 py-2 text-right text-xs font-semibold text-gray-700">IVA</th>
-                      <th className="border border-gray-300 px-3 py-2 text-right text-xs font-semibold text-gray-700">Total</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {currentInvoice.items.map((item, idx) => (
-                      <tr key={item.id} className="hover:bg-gray-50">
-                        <td className="border border-gray-300 px-3 py-2 text-sm">{idx + 1}</td>
-                        <td className="border border-gray-300 px-3 py-2 text-sm">{getProductName(item.productId)}</td>
-                        <td className="border border-gray-300 px-3 py-2 text-sm text-center">{item.quantity}</td>
-                        <td className="border border-gray-300 px-3 py-2 text-sm text-right">${item.unitPrice.toFixed(2)}</td>
-                        <td className="border border-gray-300 px-3 py-2 text-sm text-right">
-                          {item.discount > 0 ? `-$${item.discount.toFixed(2)}` : '$0.00'}
-                        </td>
-                        <td className="border border-gray-300 px-3 py-2 text-sm text-right">${item.subtotal.toFixed(2)}</td>
-                        <td className="border border-gray-300 px-3 py-2 text-sm text-right">${item.taxAmount.toFixed(2)}</td>
-                        <td className="border border-gray-300 px-3 py-2 text-sm text-right font-medium">${item.total.toFixed(2)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            {/* Totales */}
-            <div className="bg-gray-50 rounded-lg p-4">
-              <div className="flex justify-end">
-                <div className="w-64 space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Subtotal:</span>
-                    <span className="text-sm font-medium">${currentInvoice.subtotal.toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">IVA (13%):</span>
-                    <span className="text-sm font-medium">${currentInvoice.totalTax.toFixed(2)}</span>
-                  </div>
-                  <div className="border-t border-gray-300 pt-2 mt-2">
-                    <div className="flex justify-between">
-                      <span className="text-lg font-bold text-orange-600">TOTAL A PAGAR:</span>
-                      <span className="text-lg font-bold text-orange-600">${currentInvoice.total.toFixed(2)}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Notas si hay */}
-            {watch('notes') && (
-              <div>
-                <h4 className="text-sm font-semibold text-gray-900 mb-1">Notas:</h4>
-                <p className="text-sm text-gray-600">{watch('notes')}</p>
-              </div>
-            )}
-
-            <div className="flex justify-end pt-4">
-              <Button variant="secondary" onClick={() => setIsPreviewModalOpen(false)}>
-                Cerrar
-              </Button>
-            </div>
-          </div>
-        )}
-      </Modal>
->>>>>>> baaeab5 (feat: Implementación completa de mejoras y nuevas funcionalidades del sistema)
     </div>
   );
 };

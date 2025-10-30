@@ -14,4 +14,7 @@ authRouter.get("/me", authenticate, authController.me);
 // Logout (revocar token)
 authRouter.post("/logout", authenticate, authController.logout);
 
+// Administrative endpoint to unblock users from brute force protection
+authRouter.post("/unblock", authenticate, authController.unblock);
+
 

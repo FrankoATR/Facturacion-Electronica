@@ -56,13 +56,8 @@ export interface Invoice {
   id: string;
   clientId: string;
   number: string;
-<<<<<<< HEAD
-  type: 'TRADITIONAL' | 'ELECTRONIC' | 'tradicional' | 'electronica';
-  status: 'DRAFT' | 'ISSUED' | 'CANCELED' | 'ANNULLED' | 'draft' | 'emmited' | 'rejected';
-=======
   type: 'TRADITIONAL' | 'ELECTRONIC' | 'CREDIT_FISCAL' | 'tradicional' | 'electronica' | 'credito_fiscal';
-  status: 'DRAFT' | 'ISSUED' | 'CANCELED' | 'borrador' | 'emitida' | 'anulada';
->>>>>>> baaeab5 (feat: Implementación completa de mejoras y nuevas funcionalidades del sistema)
+  status: 'DRAFT' | 'ISSUED' | 'CANCELED' | 'ANNULLED' | 'draft' | 'emmited' | 'rejected' | 'borrador' | 'emitida' | 'anulada';
   items: InvoiceItem[];
   subtotal: number;
   totalTax: number;

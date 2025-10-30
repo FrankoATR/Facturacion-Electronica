@@ -23,7 +23,7 @@ export const userRepository = {
     return prisma.user.findUnique({ where: { id } });
   },
   async list() {
-    return prisma.user.findMany({ select: { id: true, email: true, name: true, role: true, isActive: true, createdAt: true } });
+    return prisma.user.findMany({ select: { id: true, email: true, name: true, role: true, isActive: true, createdAt: true, lastLoginAt: true } });
   },
   async create(data: UserCreateInput) {
     return prisma.user.create({ data, select: { id: true, email: true, name: true, role: true } });

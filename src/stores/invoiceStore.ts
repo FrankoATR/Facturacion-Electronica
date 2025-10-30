@@ -11,7 +11,7 @@ interface InvoiceState {
   loading: boolean;
   error: string | null;
   fetchInvoices: () => Promise<void>;
-  createInvoice: (invoice: Omit<Invoice, 'id' | 'number' | 'createdAt' | 'updatedAt'>) => Promise<void>;
+  createInvoice: (invoice: Omit<Invoice, 'id' | 'number' | 'createdAt' | 'updatedAt'>) => Promise<Invoice>;
   updateInvoice: (id: string, invoice: Partial<Invoice>) => Promise<void>;
   deleteInvoice: (id: string) => Promise<void>;
   getInvoiceById: (id: string) => Invoice | undefined;
@@ -89,9 +89,12 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
         })),
       };
       const res = await apiFetch<{ data: any }>(`/invoices`, { method: 'POST', body: payload });
-      set(state => ({ invoices: [...state.invoices, mapApiInvoice(res.data)], loading: false }));
+      const createdInvoice = mapApiInvoice(res.data);
+      set(state => ({ invoices: [...state.invoices, createdInvoice], loading: false }));
+      return createdInvoice;
     } catch (error) {
       set({ error: 'Error al crear factura', loading: false });
+      throw error;
     }
   },
 
@@ -99,24 +102,12 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
     set({ loading: true, error: null });
     try {
       // specific endpoints for state transitions
-<<<<<<< HEAD
-      if (updates.status === 'emmited') {
+      if (updates.status === 'emmited' || updates.status === 'emitida') {
         const res = await apiFetch<{ data: any }>(`/invoices/${id}/issue`, { method: 'POST' });
         set(state => ({ invoices: state.invoices.map(i => i.id === id ? mapApiInvoice(res.data) : i), loading: false }));
         return;
       }
-      if (updates.status === 'rejected') {
-        await apiFetch<void>(`/invoices/${id}/cancel`, { method: 'POST' });
-        set(state => ({ invoices: state.invoices.map(i => i.id === id ? { ...i, status: 'rejected' } : i), loading: false }));
-        return;
-      }
-=======
-      if (updates.status === 'emitida') {
-        const res = await apiFetch<{ data: any }>(`/invoices/${id}/issue`, { method: 'POST' });
-        set(state => ({ invoices: state.invoices.map(i => i.id === id ? mapApiInvoice(res.data) : i), loading: false }));
-        return;
-      }
-      if (updates.status === 'anulada') {
+      if (updates.status === 'rejected' || updates.status === 'anulada') {
         const cancellationReason = (updates as any).cancellationReason;
         if (!cancellationReason) {
           throw new Error('La observación es obligatoria para anular una factura');
@@ -125,10 +116,10 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
           method: 'POST', 
           body: { cancellationReason } 
         });
-        set(state => ({ invoices: state.invoices.map(i => i.id === id ? { ...i, status: 'anulada', cancellationReason } : i), loading: false }));
+        const status = updates.status || 'rejected';
+        set(state => ({ invoices: state.invoices.map(i => i.id === id ? { ...i, status, cancellationReason } : i), loading: false }));
         return;
       }
->>>>>>> baaeab5 (feat: Implementación completa de mejoras y nuevas funcionalidades del sistema)
       // fallback: no generic PATCH endpoint for invoices in backend; refresh
       await get().fetchInvoices();
       set({ loading: false });

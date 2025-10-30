@@ -1,5 +1,5 @@
 import { prisma } from "../../config/prisma";
-import { ProductStatus, StockMovementType } from "@prisma/client";
+import { ProductStatus, StockMovementType, Prisma } from "@prisma/client";
 
 export type ProductCreateInput = {
   sku: string;
@@ -20,8 +20,8 @@ export const productRepository = {
     const where = search
       ? {
           OR: [
-            { name: { contains: search, mode: "insensitive" } },
-            { sku: { contains: search, mode: "insensitive" } },
+            { name: { contains: search, mode: Prisma.QueryMode.insensitive } },
+            { sku: { contains: search, mode: Prisma.QueryMode.insensitive } },
           ],
         }
       : {};

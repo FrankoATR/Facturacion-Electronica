@@ -1,5 +1,5 @@
 import { prisma } from "../../config/prisma";
-import { ClientStatus } from "@prisma/client";
+import { ClientStatus, Prisma } from "@prisma/client";
 
 export type ClientCreateInput = {
   name: string;
@@ -18,8 +18,8 @@ export const clientRepository = {
     const where = search
       ? {
           OR: [
-            { name: { contains: search, mode: "insensitive" } },
-            { taxId: { contains: search, mode: "insensitive" } },
+            { name: { contains: search, mode: Prisma.QueryMode.insensitive } },
+            { taxId: { contains: search, mode: Prisma.QueryMode.insensitive } },
           ],
         }
       : {};

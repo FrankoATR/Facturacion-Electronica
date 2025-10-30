@@ -38,11 +38,17 @@ const roleMapping: Record<string, keyof typeof ROLE_PERMISSIONS> = {
   'vendedor': 'SELLER',
   'contador': 'ACCOUNTANT',
   'auditor': 'AUDITOR',
-  'cliente': 'CUSTOMER'
+  'cliente': 'CUSTOMER',
+  // También mapear roles en mayúsculas (desde la base de datos)
+  'ADMIN': 'ADMIN',
+  'SELLER': 'SELLER',
+  'ACCOUNTANT': 'ACCOUNTANT',
+  'AUDITOR': 'AUDITOR',
+  'CUSTOMER': 'CUSTOMER'
 };
 
 export function hasPermission(
-  userRole: 'administrador' | 'vendedor' | 'contador' | 'auditor' | 'cliente',
+  userRole: 'administrador' | 'vendedor' | 'contador' | 'auditor' | 'cliente' | 'ADMIN' | 'SELLER' | 'ACCOUNTANT' | 'AUDITOR' | 'CUSTOMER',
   module: string,
   action: string
 ): boolean {

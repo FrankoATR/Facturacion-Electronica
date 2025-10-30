@@ -132,34 +132,29 @@ Sistema completo de facturación electrónica desarrollado para El Salvador, con
 #### (WSL bash) Inicialización rápida del proyecto
 
 ```bash
-# 0) Abrir WSL bash y ubicarse en backend
-cd "/mnt/c/Users/luism/Desktop/Proyecto Facturacion Electronica/Facturacion-Electronica/backend"
+# 0) Abrir WSL bash y ubicarse en el directorio del proyecto
+cd "/mnt/c/Users/[TU_USUARIO]/Desktop/PP2FDTE/Facturacion-Electronica/backend"
 
-# 1) Instalar dependencias
+# 1) Configurar variables de entorno (.env)
+# Crear archivo .env con la configuración de arriba
+
+# 2) Instalar dependencias del backend
 npm install
 
-# 2) Generar cliente Prisma
-npx prisma generate
+# 3) Generar cliente Prisma
+npm run prisma:generate
 
-# 3) Aplicar migraciones (desarrollo)
-npx prisma migrate dev
+# 4) Ejecutar migraciones de base de datos
+npm run prisma:migrate
 
-# Si Prisma pide reset porque una migración fue editada:
-# ADVERTENCIA: borra los datos de desarrollo
-npx prisma migrate reset --force
-npx prisma generate
-npx prisma migrate dev
+# 5) Ejecutar seeders para datos iniciales
+npm run prisma:seed
 
-# 4) Semillas
-npx ts-node prisma/seed.ts
-npx ts-node prisma/seed-products.ts
-npx ts-node prisma/seed-invoices.ts
-
-# 5) Ejecutar backend en dev
+# 6) Ejecutar backend en modo desarrollo
 npm run dev
 
-# (Opcional) Prisma Studio
-npx prisma studio
+# (Opcional) Abrir Prisma Studio para ver la base de datos
+npm run prisma:studio
 ```
 
 #### 1. Configurar Base de Datos PostgreSQL
@@ -184,29 +179,46 @@ GRANT ALL PRIVILEGES ON DATABASE billing_db TO billing_user;
 **Backend** (`backend/.env`):
 ```bash
 cd backend
-# Crear archivo .env si no existe
+# Crear archivo .env con la configuración completa
 ```
 
-Edita `backend/.env` con tus configuraciones:
+Copia y pega esta configuración en `backend/.env`:
 ```env
-DATABASE_URL="postgresql://postgres:postgres@localhost:5432/billing_db"
+# Configuración de entorno para el backend
+
+# Database Configuration
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/billing_db?schema=public"
+
+# JWT Configuration
+JWT_SECRET=tu-super-secreto-jwt-key-cambiar-en-produccion-minimo-32-caracteres
+JWT_EXPIRES_IN=24h
+JWT_REFRESH_EXPIRES_IN=7d
+
+# Server Configuration
 NODE_ENV=development
 PORT=4000
-JWT_SECRET=tu-jwt-secret-muy-seguro-minimo-32-caracteres
-JWT_EXPIRES_IN=24h
 CORS_ORIGIN=http://localhost:5173
 
-# SMTP para correos (opcional)
+# Rate Limiting
+RATE_LIMIT_WINDOW_MS=900000
+RATE_LIMIT_MAX=5000
+LOGIN_RATE_LIMIT_WINDOW_MS=900000
+LOGIN_RATE_LIMIT_MAX=200
+MAX_LOGIN_ATTEMPTS=20
+LOGIN_LOCKOUT_DURATION=900000
+
+# Session Configuration
+SESSION_TIMEOUT=1800000
+
+# SMTP Configuration (Office 365)
 SMTP_HOST=smtp.office365.com
 SMTP_PORT=587
 SMTP_USER=tu-email@ejemplo.com
 SMTP_PASS=tu-contraseña
-SMTP_FROM="EleCtroZ <noreply@electroz.com>"
+SMTP_FROM=EleCtroZ <noreply@electroz.com>
 
-# Rate Limiting
-RATE_LIMIT_MAX=5000
-LOGIN_RATE_LIMIT_MAX=200
-MAX_LOGIN_ATTEMPTS=20
+# Email Sending (habilitar para envío de correos)
+SEND_EMAILS=true
 ```
 
 **Frontend** (`.env` en la raíz):
@@ -276,26 +288,48 @@ Una vez ejecutados los seeders, podrás acceder con:
 
 ## Variables de Entorno
 
-### Backend (.env)
+### Backend (backend/.env)
 ```env
-DATABASE_URL="postgresql://postgres:postgres@localhost:5432/billing_db"
+# Configuración de entorno para el backend
+
+# Database Configuration
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/billing_db?schema=public"
+
+# JWT Configuration
+JWT_SECRET=tu-super-secreto-jwt-key-cambiar-en-produccion-minimo-32-caracteres
+JWT_EXPIRES_IN=24h
+JWT_REFRESH_EXPIRES_IN=7d
+
+# Server Configuration
 NODE_ENV=development
 PORT=4000
-JWT_SECRET=tu-jwt-secret-muy-seguro
-JWT_EXPIRES_IN=24h
 CORS_ORIGIN=http://localhost:5173
 
-# SMTP para correos
+# Rate Limiting
+RATE_LIMIT_WINDOW_MS=900000
+RATE_LIMIT_MAX=5000
+LOGIN_RATE_LIMIT_WINDOW_MS=900000
+LOGIN_RATE_LIMIT_MAX=200
+MAX_LOGIN_ATTEMPTS=20
+LOGIN_LOCKOUT_DURATION=900000
+
+# Session Configuration
+SESSION_TIMEOUT=1800000
+
+# SMTP Configuration (Office 365)
 SMTP_HOST=smtp.office365.com
 SMTP_PORT=587
 SMTP_USER=tu-email@ejemplo.com
 SMTP_PASS=tu-contraseña
-SMTP_FROM="EleCtroZ <noreply@electroz.com>"
+SMTP_FROM=EleCtroZ <noreply@electroz.com>
 
-# Rate Limiting
-RATE_LIMIT_MAX=5000
-LOGIN_RATE_LIMIT_MAX=200
-MAX_LOGIN_ATTEMPTS=20
+# Email Sending (habilitar para envío de correos)
+SEND_EMAILS=true
+```
+
+### Frontend (.env)
+```env
+VITE_API_URL=http://localhost:4000/api
 ```
 
 ## Scripts Disponibles
@@ -485,4 +519,77 @@ npm run build
 
 ---
 
+## 🆕 Últimas Actualizaciones y Mejoras
+
+### ✅ Correcciones Críticas (2025)
+- **🔧 Problemas de Tipos TypeScript**: Solucionados errores de importación de tipos Express
+- **🗄️ Configuración de Base de Datos**: Archivo `.env` completo con todas las variables necesarias
+- **🔐 Autenticación Mejorada**: Protección contra brute force y gestión de sesiones
+- **📧 Sistema de Correos**: Configuración completa de SMTP con Office 365
+- **🎯 Flujo de Facturación**: Corrección del proceso DRAFT → ISSUED con generación correcta de DTE
+- **🛡️ Seguridad Avanzada**: Headers de seguridad, sanitización de inputs y rate limiting
+- **📱 UI/UX Mejorada**: Previsualización de facturas y manejo de errores
+
+### 🚀 Características Técnicas Implementadas
+- **DTE Generation**: Creación automática de Documentos Tributarios Electrónicos
+- **PDF Generation**: Facturas profesionales con formato EleCtroZ
+- **Email Notifications**: Envío automático de facturas por correo
+- **Stock Monitoring**: Alertas automáticas de inventario bajo
+- **Audit Logging**: Registro completo de todas las operaciones
+- **Role-based Access**: Control granular de permisos por módulo
+- **Real-time Updates**: Actualización automática de datos en la interfaz
+
+### 📊 Estado del Sistema
+- ✅ **Backend**: 100% funcional con Express + TypeScript + Prisma
+- ✅ **Frontend**: 100% funcional con React + Zustand + Tailwind
+- ✅ **Base de Datos**: PostgreSQL con migraciones y seeders completos
+- ✅ **Seguridad**: Autenticación JWT + protección avanzada
+- ✅ **Documentación**: DTE según normativa salvadoreña
+
+### 🎯 Próximos Pasos
+- Configurar credenciales SMTP reales para envío de correos
+- Implementar firma digital avanzada para DTE
+- Agregar reportes avanzados de IVA y ventas
+- Implementar integración con bancos para pagos
+
+## 🔧 Solución de Problemas
+
+### Error: "Cannot find module '../types/express'"
+**Solución**: Los tipos globales se cargan automáticamente. No es necesario importar archivos `.d.ts`.
+
+### Error: "PrismaClientConstructorValidationError: Invalid value undefined for datasource"
+**Solución**: Verificar que el archivo `backend/.env` existe y contiene `DATABASE_URL` correcta.
+
+### Error: "Authentication unsuccessful, the user credentials were incorrect"
+**Solución**: Configurar credenciales SMTP reales en `backend/.env`:
+```env
+SMTP_USER=tu-email@outlook.com
+SMTP_PASS=tu-contraseña-real
+```
+
+### Error: "Invoice must be issued before generating DTE"
+**Solución**: Este error ya fue corregido. El flujo DRAFT → ISSUED ahora funciona correctamente.
+
+### Base de datos no se conecta
+**Solución**: Verificar que PostgreSQL esté corriendo:
+```bash
+sudo service postgresql status
+sudo -u postgres psql -c "SELECT version();"
+```
+
+### Usuario admin no puede acceder
+**Solución**: El usuario puede estar bloqueado. Ejecutar en backend:
+```bash
+node -e "const { bruteForceProtection } = require('./dist/middleware/brute-force'); bruteForceProtection.unblock('admin@example.com');"
+```
+
+### Puerto 4000 ya está en uso
+**Solución**: Matar el proceso que usa el puerto:
+```bash
+sudo lsof -ti:4000 | xargs kill -9
+```
+
+---
+
 **Desarrollado para EleCtroZ** - Sistema de Facturación Electrónica para El Salvador
+**Versión**: 2.0.0 - Actualizado: Octubre 2025

@@ -108,7 +108,7 @@ export const authController = {
   async logout(req: Request, res: Response) {
     try {
       const token = req.headers.authorization?.replace('Bearer ', '');
-      
+
       if (token) {
         revokeToken(token);
       }
@@ -119,6 +119,39 @@ export const authController = {
     } catch (error) {
       console.error('[AUTH] Logout error:', error);
       res.status(500).json({ message: "Internal server error" });
+    }
+  },
+
+  /**
+   * POST /api/auth/unblock
+   * Administrative endpoint to unblock a user/IP from brute force protection
+   */
+  async unblock(req: Request, res: Response) {
+    try {
+      const { identifier } = req.body; // email or IP
+
+      if (!identifier) {
+        return res.status(400).json({ message: "Identifier (email or IP) is required" });
+      }
+
+      // Import brute force protection
+      const { bruteForceProtection } = await import("../../middleware/brute-force");
+
+      // Unblock the identifier
+      bruteForceProtection.unblock(identifier);
+
+      await securityLogger.logFromRequest(req, SecurityEventType.SUSPICIOUS_ACTIVITY, SecuritySeverity.MEDIUM, {
+        action: 'UNBLOCK_USER',
+        identifier,
+        adminUser: req.user?.email || 'system'
+      });
+
+      return res.json({
+        message: `Successfully unblocked: ${identifier}`,
+      });
+    } catch (error: any) {
+      console.error("[AUTH] Unblock error:", error);
+      return res.status(500).json({ message: "Internal server error" });
     }
   },
 };

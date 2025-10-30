@@ -31,7 +31,12 @@ export const dteController = {
       }
 
       // Generate DTE payload (can preview in any status)
-      const dtePayload = fromInvoiceToDTE(invoice as any);
+      // For preview, use issuedAt if exists, otherwise use current date
+      const invoiceForPreview = {
+        ...invoice,
+        issuedAt: invoice.issuedAt || new Date(),
+      };
+      const dtePayload = fromInvoiceToDTE(invoiceForPreview as any);
 
       // Add control code
       const controlCode = generateControlCode(
@@ -84,22 +89,49 @@ export const dteController = {
       }
 
       if (invoice.dteSignature) {
-        return res.status(400).json({ 
+        return res.status(400).json({
           error: "Invoice already has a DTE signature",
-          signedAt: invoice.updatedAt 
+          signedAt: invoice.updatedAt
         });
       }
 
-      // Generate DTE payload
-      const dtePayload = fromInvoiceToDTE(invoice as any);
-      
+      // First update the invoice to set issuedAt and status
+      const issuedAt = new Date();
+      await prisma.invoice.update({
+        where: { id: invoiceId },
+        data: {
+          status: "ISSUED",
+          issuedAt,
+        },
+      });
+
+      // Now fetch the complete invoice with issuedAt set
+      const updatedInvoice = await prisma.invoice.findUnique({
+        where: { id: invoiceId },
+        include: {
+          client: true,
+          items: {
+            include: {
+              product: true,
+            },
+          },
+        },
+      });
+
+      if (!updatedInvoice) {
+        return res.status(404).json({ error: "Invoice not found after update" });
+      }
+
+      // Generate DTE payload with issuedAt set
+      const dtePayload = fromInvoiceToDTE(updatedInvoice as any);
+
       // Add control code and electronic seal
       const controlCode = generateControlCode(
-        invoice.number,
-        Number(invoice.total),
-        invoice.issuedAt || new Date()
+        updatedInvoice.number,
+        Number(updatedInvoice.total),
+        updatedInvoice.issuedAt || new Date()
       );
-      
+
       const electronicSeal = generateElectronicSeal();
 
       const completeDTE = {
@@ -111,11 +143,10 @@ export const dteController = {
       // Sign DTE with AES-256-GCM
       const signedDTE = signDTEWithAES(completeDTE);
 
-      // Store DTE in invoice and update status to ISSUED
-      const updatedInvoice = await prisma.invoice.update({
+      // Store DTE signature in invoice
+      const finalInvoice = await prisma.invoice.update({
         where: { id: invoiceId },
         data: {
-          status: "ISSUED",
           dteJson: signedDTE.dteJson as any,
           dteSignature: JSON.stringify({
             signature: signedDTE.signature,
@@ -125,7 +156,6 @@ export const dteController = {
             controlCode,
             electronicSeal,
           }),
-          issuedAt: invoice.issuedAt || new Date(),
         },
       });
 
@@ -136,7 +166,7 @@ export const dteController = {
         entity: "Invoice",
         entityId: invoiceId,
         payload: {
-          invoiceNumber: invoice.number,
+          invoiceNumber: finalInvoice.number,
           hash: signedDTE.hash,
           method: signedDTE.signatureMethod,
           controlCode,
@@ -146,9 +176,9 @@ export const dteController = {
       return res.json({
         message: "DTE signed successfully",
         invoice: {
-          id: updatedInvoice.id,
-          number: updatedInvoice.number,
-          status: updatedInvoice.status,
+          id: finalInvoice.id,
+          number: finalInvoice.number,
+          status: finalInvoice.status,
         },
         dte: {
           payload: signedDTE.dteJson,
