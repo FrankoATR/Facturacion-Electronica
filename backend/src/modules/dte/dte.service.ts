@@ -1,13 +1,13 @@
 import { prisma } from "../../config/prisma";
 import {
-  DTEDocument,
-  generateControlNumber,
-  generateCodigoGeneracion,
-  numberToWords,
-  calculateIVA,
-  generateFirmaElectronica,
-  generateSelloRecepcion,
-} from "./dte-format";
+    DTEDocument,
+    generateControlNumber,
+    generateCodigoGeneracion,
+    numberToWords,
+    calculateIVA,
+    generateFirmaElectronica,
+    generateSelloRecepcion,
+  } from "./dte-format";
 
 export async function simulateDteSend(invoiceId: string) {
   const ok = Math.random() > 0.1; // 90% success
@@ -123,11 +123,15 @@ export async function buildDTEDocument(invoiceId: string): Promise<DTEDocument |
   const totalPagar = Number(invoice.total);
   const totalDescuentos = invoice.items.reduce((sum, it) => sum + Number(it.discount || 0), 0);
 
+  // Determinar el tipo de DTE según el tipo de factura
+  // 01 = Factura normal, 03 = Crédito Fiscal (CCF)
+  const tipoDte = invoice.type === "CREDIT_FISCAL" ? "03" : "01";
+  
   const dteDoc: DTEDocument = {
     identificacion: {
       version: 1,
       ambiente: "00", // Prueba
-      tipoDte: "01", // Factura
+      tipoDte: tipoDte,
       numeroControl,
       codigoGeneracion,
       tipoModelo: 1,
@@ -157,7 +161,7 @@ export async function buildDTEDocument(invoiceId: string): Promise<DTEDocument |
     receptor: {
       tipoDocumento: "36", // NIT
       numDocumento: invoice.client.taxId,
-      nrc: null,
+      nrc: invoice.client.nrc || null, // NRC requerido para Crédito Fiscal
       nombre: invoice.client.name,
       codActividad: null,
       descActividad: null,
@@ -248,9 +252,22 @@ export async function buildDTEDocument(invoiceId: string): Promise<DTEDocument |
       {
         campo: "sistema",
         etiqueta: "Sistema",
-        valor: "Adventure Works Facturación Electrónica",
+        valor: "EleCtroZ Facturación Electrónica",
       },
     ],
+  };
+
+  // Generar firma digital simulada para el DTE
+  const selloDigital = generateFirmaElectronica(dteDoc);
+  const fechaFirma = new Date().toISOString();
+  
+  dteDoc.firma = {
+    nitFirmante: "0614-031289-001-9",
+    nombreFirmante: "EleCtroZ S.A. DE C.V.",
+    fechaFirma: fechaFirma,
+    selloDigital: selloDigital,
+    algoritmoFirma: "SHA256",
+    certificadoDigital: `CERT-SIMULADO-${codigoGeneracion}`, // Simulado para pruebas
   };
 
   return dteDoc;

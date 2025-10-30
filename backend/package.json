@@ -11,7 +11,9 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:deploy": "prisma migrate deploy",
-    "prisma:seed": "ts-node ./prisma/seed.ts"
+    "prisma:seed": "ts-node ./prisma/seed.ts",
+    "prisma:seed:products": "ts-node ./prisma/seed-products.ts",
+    "prisma:seed:invoices": "ts-node ./prisma/seed-invoices.ts"
   },
   "dependencies": {
     "@prisma/client": "latest",

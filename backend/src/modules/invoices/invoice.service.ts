@@ -7,6 +7,7 @@ import { notificationService } from "../notifications/notification.service";
 import { stockAlertService } from "../inventory/stock-alert.service";
 import { emailService } from "../email/email.service";
 import { env } from "../../config/env";
+import PDFDocument from "pdfkit";
 
 function calcTotals(items: CreateInvoiceInput["items"]) {
   // Calcular subtotal considerando descuentos
@@ -38,6 +39,15 @@ export const invoiceService = {
   },
 
   async create(userId: string | undefined, input: CreateInvoiceInput) {
+    // Validar que si es crédito fiscal, el cliente tenga NRC
+    if (input.type === "CREDIT_FISCAL") {
+      const client = await prisma.client.findUnique({ where: { id: input.clientId } });
+      if (!client) throw new Error("Cliente no encontrado");
+      if (!client.nrc || client.nrc.trim() === "") {
+        throw new Error("El crédito fiscal requiere que el cliente tenga un NRC (Número de Registro de Contribuyente) registrado");
+      }
+    }
+
     const productIds = input.items.map(i => i.productId).filter(Boolean) as string[];
     const products = productIds.length ? await prisma.product.findMany({ where: { id: { in: productIds } } }) : [];
     const productById = new Map(products.map(p => [p.id, p]));
@@ -132,25 +142,60 @@ export const invoiceService = {
         // Obtener información del cliente
         const client = await prisma.client.findUnique({ where: { id: input.clientId } });
         const clientName = client?.name || 'Cliente';
+        const clientEmail = client?.email;
         
-        // Para pruebas, enviar al mismo email configurado en SMTP_USER
-        const emailToSend = env.smtpUser;
-        
-        console.log(`[INVOICE] Enviando factura electrónica ${created.number} por email a ${emailToSend}`);
-        
-        // Crear un PDF simple (mock) para el adjunto
-        const mockPdfContent = `Factura Electrónica ${created.number}\nCliente: ${clientName}\nTotal: $${total.toFixed(2)}\nFecha: ${new Date().toLocaleDateString()}\nTipo: Electrónica`;
-        const pdfBuffer = Buffer.from(mockPdfContent, 'utf-8');
-        
-        await emailService.sendInvoiceEmail(
-          emailToSend,
-          created.number,
-          clientName,
-          total,
-          pdfBuffer
-        );
-        
-        console.log(`[INVOICE] ✅ Correo enviado exitosamente para factura electrónica ${created.number}`);
+        // Validar que el cliente tenga email antes de enviar
+        if (!clientEmail) {
+          console.log(`[INVOICE] ⚠️ Cliente ${clientName} no tiene email configurado - no se enviará correo para factura ${created.number}`);
+        } else {
+          console.log(`[INVOICE] Enviando factura electrónica ${created.number} por email a ${clientEmail}`);
+          
+          // Generar PDF completo usando el mismo formato que en dte.ts
+          // Para esto necesitamos construir el DTE primero
+          const { buildInvoiceDto, buildDTEDocument } = await import("../dte/dte.service");
+          
+          const dto = await buildInvoiceDto(created.id);
+          const dteDoc = await buildDTEDocument(created.id);
+          
+          if (dto && dteDoc) {
+            const pdfDoc = new PDFDocument({ margin: 50, size: 'LETTER' });
+            const chunks: Buffer[] = [];
+            
+            pdfDoc.on('data', (chunk) => chunks.push(chunk));
+            
+            await new Promise<void>((resolve) => {
+              pdfDoc.on('end', () => resolve());
+              
+              // Usar el mismo formato del PDF que se genera en dte.ts
+              pdfDoc.fontSize(24).fillColor('#ff6b35').text('⚡ EleCtroZ', { align: 'center' });
+              pdfDoc.fontSize(10).fillColor('#333').text('EleCtroZ S.A. DE C.V.', { align: 'center' });
+              pdfDoc.text('NIT: 0614-031289-001-9 | NRC: 12345-6', { align: 'center' });
+              pdfDoc.text('Colonia Escalón, San Salvador, El Salvador', { align: 'center' });
+              pdfDoc.text('Tel: 2222-2222 | Email: info@electroz.com', { align: 'center' });
+              pdfDoc.moveDown();
+              pdfDoc.moveTo(50, pdfDoc.y).lineTo(562, pdfDoc.y).stroke();
+              pdfDoc.moveDown();
+              pdfDoc.fontSize(16).fillColor('#ff6b35').text('FACTURA ELECTRÓNICA', { align: 'center' });
+              pdfDoc.fontSize(12).fillColor('#333').text(`No. ${dto.number}`, { align: 'center' });
+              pdfDoc.moveDown();
+              pdfDoc.fontSize(10).fillColor('#333').text(`Cliente: ${clientName}`);
+              pdfDoc.text(`Total: $${total.toFixed(2)}`);
+              pdfDoc.end();
+            });
+            
+            const pdfBuffer = Buffer.concat(chunks);
+            
+            await emailService.sendInvoiceEmail(
+              clientEmail,
+              created.number,
+              clientName,
+              total,
+              pdfBuffer
+            );
+            
+            console.log(`[INVOICE] ✅ Correo enviado exitosamente para factura electrónica ${created.number} a ${clientEmail}`);
+          }
+        }
       } catch (emailError: any) {
         console.error(`[INVOICE] ❌ Error al enviar correo para factura electrónica ${created.number}:`, emailError.message);
         // No fallar la creación de factura si el email falla
@@ -169,13 +214,23 @@ export const invoiceService = {
     return mapInvoiceNumbers(inv);
   },
 
-  async cancel(userId: string | undefined, id: string) {
+  async cancel(userId: string | undefined, id: string, cancellationReason: string) {
     const invoice = await prisma.invoice.findUnique({ where: { id }, include: { items: true } });
     if (!invoice) throw new Error("Not found");
     if (invoice.status === "CANCELED") throw new Error("Already canceled");
+    if (!cancellationReason || cancellationReason.trim().length === 0) {
+      throw new Error("La observación es obligatoria para anular una factura");
+    }
 
     await prisma.$transaction(async (tx) => {
-      await tx.invoice.update({ where: { id }, data: { status: "CANCELED", canceledAt: new Date() } });
+      await tx.invoice.update({ 
+        where: { id }, 
+        data: { 
+          status: "CANCELED", 
+          canceledAt: new Date(),
+          cancellationReason: cancellationReason.trim(),
+        } 
+      });
       for (const it of invoice.items) {
         if (it.productId) {
           const p = await tx.product.findUnique({ where: { id: it.productId } });
@@ -185,6 +240,14 @@ export const invoiceService = {
           }
         }
       }
+    });
+
+    await appendAuditLog({
+      actorId: userId,
+      action: "INVOICE_CANCELED",
+      entity: "Invoice",
+      entityId: invoice.id,
+      payload: { number: invoice.number, cancellationReason: cancellationReason.trim() },
     });
   },
 

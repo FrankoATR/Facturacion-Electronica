@@ -18,9 +18,10 @@ import { z } from 'zod';
 const clientSchema = z.object({
   name: z.string().min(1, 'Nombre es requerido').max(100, 'Nombre muy largo'),
   taxId: z.string().min(1, 'Identificador fiscal es requerido').regex(/^[0-9-]+$/, 'Formato inválido'),
-  email: z.string().email('Email inválido'),
-  phone: z.string().min(1, 'Teléfono es requerido'),
-  address: z.string().min(1, 'Dirección es requerida'),
+  nrc: z.string().optional().refine((val) => !val || /^[0-9-]+$/.test(val), 'Formato NRC inválido'),
+  email: z.string().optional().refine((val) => !val || z.string().email().safeParse(val).success, 'Email inválido'),
+  phone: z.string().optional(),
+  address: z.string().optional(),
   isActive: z.boolean()
 });
 
@@ -78,15 +79,17 @@ export const Clients: React.FC = () => {
       reset({
         name: client.name,
         taxId: client.taxId,
-        email: client.email,
-        phone: client.phone,
-        address: client.address,
+        nrc: client.nrc || '',
+        email: client.email || '',
+        phone: client.phone || '',
+        address: client.address || '',
         isActive: client.isActive
       });
     } else {
       reset({
         name: '',
         taxId: '',
+        nrc: '',
         email: '',
         phone: '',
         address: '',
@@ -295,6 +298,13 @@ export const Clients: React.FC = () => {
               {...register('taxId')}
               error={errors.taxId?.message}
               placeholder="20-12345678-9"
+            />
+            <Input
+              label="NRC (Número de Registro de Contribuyente)"
+              {...register('nrc')}
+              error={errors.nrc?.message}
+              placeholder="12345-6 (requerido para crédito fiscal)"
+              helpText="Opcional. Requerido si el cliente emitirá facturas con crédito fiscal"
             />
             <Input
               label="Email"

@@ -102,7 +102,7 @@ dteRouter.post("/:invoiceId/retry", authenticate, authorize(["ADMIN", "SELLER"])
   res.json({ message: "Retry processed" });
 });
 
-// Download DTE JSON (formato oficial El Salvador)
+// Download DTE JSON (formato oficial El Salvador con firma digital simulada)
 dteRouter.get("/:invoiceId/json", authenticateFromQueryOrHeader, authorize(["ADMIN", "SELLER", "ACCOUNTANT", "AUDITOR", "CUSTOMER"]), async (req, res) => {
   const dteDoc = await buildDTEDocument(req.params.invoiceId);
   if (!dteDoc) return res.status(404).json({ message: "Not found" });
@@ -111,6 +111,9 @@ dteRouter.get("/:invoiceId/json", authenticateFromQueryOrHeader, authorize(["ADM
     where: { id: req.params.invoiceId },
     select: { number: true },
   });
+  
+  // El documento DTE ya incluye la firma digital simulada generada en buildDTEDocument
+  // La firma se genera automáticamente usando SHA256 del JSON completo
   
   res.setHeader("Content-Disposition", `attachment; filename=DTE-${invoice?.number || "FACTURA"}.json`);
   res.setHeader("Content-Type", "application/json");
@@ -155,38 +158,58 @@ dteRouter.get("/:invoiceId/pdf", authenticateFromQueryOrHeader, authorize(["ADMI
 
   // === FECHAS ===
   const y1 = doc.y;
-  doc.fontSize(10).fillColor('#333');
+  doc.fontSize(10).fillColor('#333').font('Helvetica');
   doc.text(`Fecha Emisión: ${dteDoc.identificacion.fecEmi}`, 50, y1);
-  doc.text(`Hora: ${dteDoc.identificacion.horEmi}`, 350, y1);
-  doc.moveDown();
-
-  // === INFORMACIÓN DEL CLIENTE ===
-  doc.fillColor('#ff6b35').fontSize(12).text('DATOS DEL CLIENTE', { underline: true });
-  doc.moveDown(0.5);
-  doc.fillColor('#333').fontSize(10);
-  doc.text(`Nombre: ${dto.client.name}`);
-  doc.text(`NIT/DUI: ${dto.client.taxId}`);
-  if (dto.client.address) doc.text(`Dirección: ${dto.client.address}`);
-  if (dto.client.phone) doc.text(`Teléfono: ${dto.client.phone}`);
-  if (dto.client.email) doc.text(`Email: ${dto.client.email}`);
-  doc.moveDown();
-
-  // === TABLA DE ITEMS ===
-  doc.fillColor('#ff6b35').fontSize(12).text('DETALLE DE PRODUCTOS/SERVICIOS', { underline: true });
+  const horaText = `Hora: ${dteDoc.identificacion.horEmi}`;
+  const horaWidth = doc.widthOfString(horaText);
+  doc.text(horaText, 562 - horaWidth, y1);
   doc.moveDown(0.5);
 
-  // Encabezado de tabla
+  // === INFORMACIÓN DEL CLIENTE === (alineado a la derecha como en la imagen)
+  const clientY = doc.y;
+  doc.fillColor('#ff6b35').fontSize(11).font('Helvetica-Bold');
+  const clientTitle = 'DATOS DEL CLIENTE';
+  const clientTitleWidth = doc.widthOfString(clientTitle);
+  doc.text(clientTitle, 562 - clientTitleWidth, clientY, { underline: true });
+  
+  doc.fillColor('#333').fontSize(10).font('Helvetica');
+  const clientInfoY = clientY + 15;
+  let currentY = clientInfoY;
+  const clientLines = [
+    `Nombre: ${dto.client.name}`,
+    `NIT/DUI: ${dto.client.taxId}`,
+    ...(dto.client.email ? [`Email: ${dto.client.email}`] : [])
+  ];
+  
+  clientLines.forEach(line => {
+    const lineWidth = doc.widthOfString(line);
+    doc.text(line, 562 - lineWidth, currentY);
+    currentY += 12;
+  });
+  
+  doc.y = currentY + 10;
+
+  // === TABLA DE ITEMS === (alineado a la derecha)
+  const tableTitleY = doc.y;
+  doc.fillColor('#ff6b35').fontSize(11).font('Helvetica-Bold');
+  const tableTitle = 'DETALLE DE PRODUCTOS/ SERVICIOS';
+  const tableTitleWidth = doc.widthOfString(tableTitle);
+  doc.text(tableTitle, 562 - tableTitleWidth, tableTitleY, { underline: true });
+  doc.moveDown(0.5);
+
+  // Encabezado de tabla con fondo gris
   const tableTop = doc.y;
-  doc.fillColor('#f7fafc').rect(50, tableTop, 512, 20).fill();
+  doc.fillColor('#e5e7eb').rect(50, tableTop, 512, 22).fill();
   doc.fillColor('#333').fontSize(9).font('Helvetica-Bold');
-  doc.text('No.', 55, tableTop + 5, { width: 30 });
-  doc.text('Descripción', 90, tableTop + 5, { width: 180 });
-  doc.text('Cant.', 275, tableTop + 5, { width: 40 });
-  doc.text('P. Unit.', 320, tableTop + 5, { width: 60 });
-  doc.text('Desc.', 385, tableTop + 5, { width: 45 });
-  doc.text('Subtotal', 435, tableTop + 5, { width: 55 });
-  doc.text('IVA', 495, tableTop + 5, { width: 35 });
-  doc.text('Total', 535, tableTop + 5, { width: 60 });
+  const headerY = tableTop + 6;
+  doc.text('No.', 55, headerY, { width: 30 });
+  doc.text('Descripción', 90, headerY, { width: 180 });
+  doc.text('Cant.', 275, headerY, { width: 40 });
+  doc.text('P. Unit.', 320, headerY, { width: 60 });
+  doc.text('Desc.', 385, headerY, { width: 45 });
+  doc.text('Subtotal', 435, headerY, { width: 55 });
+  doc.text('IVA', 495, headerY, { width: 35 });
+  doc.text('Total', 535, headerY, { width: 60 });
 
   doc.font('Helvetica');
   let yPosition = tableTop + 25;
@@ -213,24 +236,33 @@ dteRouter.get("/:invoiceId/pdf", authenticateFromQueryOrHeader, authorize(["ADMI
   doc.moveDown();
   yPosition = doc.y;
 
-  // Línea divisoria
+  // Línea divisoria después de items
   doc.moveTo(50, yPosition).lineTo(562, yPosition).stroke();
 
-  // === TOTALES ===
-  yPosition += 10;
-  doc.fontSize(10);
-  doc.text('Subtotal:', 400, yPosition);
-  doc.text(`$${dto.totals.subtotal.toFixed(2)}`, 480, yPosition, { align: 'right' });
+  // === TOTALES (alineados a la derecha) ===
+  yPosition += 12;
+  doc.fontSize(10).fillColor('#333').font('Helvetica');
+  const subtotalText = `$${dto.totals.subtotal.toFixed(2)}`;
+  const subtotalLabel = 'Subtotal:';
+  const subtotalLabelWidth = doc.widthOfString(subtotalLabel);
+  doc.text(subtotalLabel, 480 - subtotalLabelWidth - doc.widthOfString(subtotalText), yPosition);
+  doc.text(subtotalText, 562 - doc.widthOfString(subtotalText), yPosition);
 
   yPosition += 15;
-  doc.text('IVA (13%):', 400, yPosition);
-  doc.text(`$${dto.totals.taxTotal.toFixed(2)}`, 480, yPosition, { align: 'right' });
+  const ivaText = `$${dto.totals.taxTotal.toFixed(2)}`;
+  const ivaLabel = 'IVA (13%):';
+  const ivaLabelWidth = doc.widthOfString(ivaLabel);
+  doc.text(ivaLabel, 480 - ivaLabelWidth - doc.widthOfString(ivaText), yPosition);
+  doc.text(ivaText, 562 - doc.widthOfString(ivaText), yPosition);
 
   yPosition += 20;
-  doc.fontSize(12).font('Helvetica-Bold');
+  doc.fontSize(13).font('Helvetica-Bold');
   doc.fillColor('#ff6b35');
-  doc.text('TOTAL A PAGAR:', 400, yPosition);
-  doc.text(`$${dto.totals.total.toFixed(2)}`, 480, yPosition, { align: 'right' });
+  const totalText = `$${dto.totals.total.toFixed(2)}`;
+  const totalLabel = 'TOTAL A PAGAR:';
+  const totalLabelWidth = doc.widthOfString(totalLabel);
+  doc.text(totalLabel, 480 - totalLabelWidth - doc.widthOfString(totalText), yPosition);
+  doc.text(totalText, 562 - doc.widthOfString(totalText), yPosition);
 
   // Total en letras
   yPosition += 25;

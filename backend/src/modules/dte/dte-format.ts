@@ -113,6 +113,14 @@ export interface DTEDocument {
     etiqueta: string;
     valor: string;
   }> | null;
+  firma?: {
+    nitFirmante: string;
+    nombreFirmante: string;
+    fechaFirma: string;
+    selloDigital: string;
+    algoritmoFirma: string;
+    certificadoDigital: string;
+  };
 }
 
 export function generateControlNumber(sequence: number): string {

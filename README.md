@@ -7,20 +7,30 @@ Sistema completo de facturación electrónica desarrollado para El Salvador, con
 
 ### 🏢 Gestión Empresarial Completa
 - **Facturación Electrónica**: Emisión de DTE (Documento Tributario Electrónico) según normativa salvadoreña
+  - Factura Normal (DTE tipo 01)
+  - Crédito Fiscal / CCF (DTE tipo 03) - Requiere NRC del cliente
+- **Facturación Tradicional**: Facturas en formato PDF profesional
 - **Gestión de Clientes**: CRUD completo con búsqueda por ID fiscal
+  - Soporte para NRC (Número de Registro de Contribuyente) para crédito fiscal
 - **Control de Inventario**: Gestión de productos con alertas de stock bajo
+  - Vista lista y vista grid con toggle
+  - 50 productos de ejemplo basados en Adventure Works
 - **Gestión de Usuarios**: Sistema de roles con permisos granulares
 - **Portal del Cliente**: Acceso directo para clientes a sus facturas
 
 ### 🔔 Sistema de Notificaciones
 - **Alertas de Stock**: Notificaciones automáticas cuando el inventario está bajo
 - **Notificaciones de Facturación**: Avisos de facturas emitidas y pagos recibidos
-- **Correos Automáticos**: Envío de facturas PDF por email a clientes
+- **Correos Automáticos**: Envío de facturas PDF por email al email real del cliente
+  - Envío automático solo para facturas electrónicas
+  - Validación de email del cliente antes de enviar
 
 ### 📊 Reportes y Auditoría
+- **Dashboard Mensual**: Métricas de facturación del mes actual (no solo diarias)
 - **Reportes de IVA**: Generación automática para cumplimiento fiscal
 - **Bitácora de Auditoría**: Registro completo de todas las acciones del sistema
 - **Backup de Datos**: Exportación manual de facturas en formato JSON
+- **DTE con Firma Digital**: JSON completo con firma digital simulada (SHA256)
 
 ### 🛡️ Seguridad Avanzada
 - **Autenticación JWT**: Tokens seguros con rotación automática
@@ -117,29 +127,119 @@ Sistema completo de facturación electrónica desarrollado para El Salvador, con
 - PostgreSQL 14+
 - npm o yarn
 
-### Configuración del Backend
+### Configuración Inicial Completa
+
+#### 1. Configurar Base de Datos PostgreSQL
 
 ```bash
+# Acceder a PostgreSQL (desde WSL o tu terminal)
+sudo -u postgres psql
+
+# Crear base de datos
+CREATE DATABASE billing_db;
+
+# Crear usuario (opcional)
+CREATE USER billing_user WITH PASSWORD 'tu_contraseña_segura';
+GRANT ALL PRIVILEGES ON DATABASE billing_db TO billing_user;
+
+# Salir de PostgreSQL
+\q
+```
+
+#### 2. Configurar Variables de Entorno
+
+**Backend** (`backend/.env`):
+```bash
+cd backend
+# Crear archivo .env si no existe
+```
+
+Edita `backend/.env` con tus configuraciones:
+```env
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/billing_db"
+NODE_ENV=development
+PORT=4000
+JWT_SECRET=tu-jwt-secret-muy-seguro-minimo-32-caracteres
+JWT_EXPIRES_IN=24h
+CORS_ORIGIN=http://localhost:5173
+
+# SMTP para correos (opcional)
+SMTP_HOST=smtp.office365.com
+SMTP_PORT=587
+SMTP_USER=tu-email@ejemplo.com
+SMTP_PASS=tu-contraseña
+SMTP_FROM="EleCtroZ <noreply@electroz.com>"
+
+# Rate Limiting
+RATE_LIMIT_MAX=5000
+LOGIN_RATE_LIMIT_MAX=200
+MAX_LOGIN_ATTEMPTS=20
+```
+
+**Frontend** (`.env` en la raíz):
+```bash
+# Desde la raíz del proyecto
+echo "VITE_API_URL=http://localhost:4000/api" > .env
+```
+
+O crea manualmente `.env` en la raíz con:
+```env
+VITE_API_URL=http://localhost:4000/api
+```
+
+#### 3. Instalar Dependencias
+
+```bash
+# Backend
 cd backend
 npm install
 
-# Configurar variables de entorno
-cp .env.example .env
-# Editar .env con tus configuraciones
-
-# Ejecutar migraciones
-npx prisma migrate dev
-
-# Iniciar servidor de desarrollo
-npm run dev
+# Frontend (desde la raíz del proyecto)
+cd ..
+npm install
 ```
 
-### Configuración del Frontend
+#### 4. Configurar Base de Datos y Ejecutar Migraciones
 
 ```bash
-npm install
+cd backend
+
+# Generar cliente Prisma
+npx prisma generate
+
+# Ejecutar migraciones (crea las tablas)
+npx prisma migrate dev
+
+# Ejecutar seeders para datos iniciales
+npm run prisma:seed              # Usuarios iniciales y cliente demo
+npm run prisma:seed:products     # 50 productos basados en Adventure Works
+npm run prisma:seed:invoices     # Facturas de prueba con clientes dummy
+```
+
+#### 5. Iniciar el Proyecto
+
+**Terminal 1 - Backend:**
+```bash
+cd backend
 npm run dev
 ```
+
+El backend estará disponible en: `http://localhost:4000`
+
+**Terminal 2 - Frontend:**
+```bash
+# Desde la raíz del proyecto
+npm run dev
+```
+
+El frontend estará disponible en: `http://localhost:5173`
+
+### Credenciales de Acceso Iniciales
+
+Una vez ejecutados los seeders, podrás acceder con:
+
+- **Email**: `admin@example.com`
+- **Contraseña**: `admin1234`
 
 ## Variables de Entorno
 
@@ -177,12 +277,15 @@ npm run lint         # Linting del código
 
 ### Backend
 ```bash
-npm run dev          # Servidor de desarrollo
-npm run build        # Build para producción
-npm run start        # Servidor de producción
-npm run prisma:migrate    # Ejecutar migraciones
-npm run prisma:generate   # Generar cliente Prisma
-npm run prisma:studio     # Abrir Prisma Studio
+npm run dev                    # Servidor de desarrollo
+npm run build                  # Build para producción
+npm run start                  # Servidor de producción
+npm run prisma:migrate         # Ejecutar migraciones
+npm run prisma:generate        # Generar cliente Prisma
+npm run prisma:seed            # Ejecutar seeder principal (usuarios y cliente demo)
+npm run prisma:seed:products   # Ejecutar seeder de productos (50 productos)
+npm run prisma:seed:invoices   # Ejecutar seeder de facturas (facturas de prueba)
+npm run prisma:studio          # Abrir Prisma Studio (GUI para la BD)
 ```
 
 ## Credenciales de Acceso
@@ -199,10 +302,16 @@ Los usuarios adicionales se pueden crear desde el módulo de "Gestión de Usuari
 ### ✅ Sistema Completo de Facturación
 - [x] **Facturación Electrónica**: Emisión de DTE según normativa salvadoreña
 - [x] **Facturación Tradicional**: Facturas en formato PDF profesional
+- [x] **Crédito Fiscal**: Soporte completo para CCF (Comprobante de Crédito Fiscal) - tipo DTE 03
+  - Requiere NRC (Número de Registro de Contribuyente) del cliente
+  - Validación automática antes de emitir
+  - Generación de JSON DTE con tipo de documento "03"
 - [x] **Búsqueda de Clientes**: Por ID fiscal (NIT/DUI) y nombre
 - [x] **Descuentos por Producto**: Aplicación de descuentos en items individuales
 - [x] **Cálculo Automático**: IVA del 13% según normativa salvadoreña
-- [x] **Envío de Correos**: Facturas PDF enviadas automáticamente a clientes
+- [x] **Envío de Correos**: Facturas PDF enviadas automáticamente a email real del cliente
+- [x] **Previsualización de Factura**: Vista previa completa antes de emitir
+- [x] **Anulación de DTE**: Anulación con observación obligatoria (no eliminación) para mejor control contable
 
 ### ✅ Gestión de Usuarios y Permisos
 - [x] **Sistema de Roles**: ADMIN, SELLER, ACCOUNTANT, AUDITOR, CUSTOMER
@@ -210,11 +319,21 @@ Los usuarios adicionales se pueden crear desde el módulo de "Gestión de Usuari
 - [x] **Control de Acceso**: Permisos granulares por módulo y acción
 - [x] **Portal del Cliente**: Administradores pueden vincularse como clientes
 
+### ✅ Gestión de Clientes Mejorada
+- [x] **Campo NRC**: Soporte para Número de Registro de Contribuyente
+  - Requerido para emitir crédito fiscal
+  - Validación de formato
+  - Campo opcional para facturas normales
+
 ### ✅ Control de Inventario Avanzado
 - [x] **Gestión de Productos**: CRUD completo con SKU único
 - [x] **Control de Stock**: Ajustes manuales y automáticos
 - [x] **Alertas de Stock Bajo**: Notificaciones automáticas (umbral: 5 unidades)
 - [x] **Reportes de Stock**: Monitoreo diario automático
+- [x] **Vista Grid del Inventario**: Toggle entre vista lista y grid con cards visuales
+  - Vista lista tradicional para datos detallados
+  - Vista grid con cards para navegación visual rápida
+  - Paginación para ambas vistas
 
 ### ✅ Sistema de Notificaciones
 - [x] **Notificaciones en Tiempo Real**: Bell icon con contador de no leídas
@@ -222,11 +341,31 @@ Los usuarios adicionales se pueden crear desde el módulo de "Gestión de Usuari
 - [x] **Notificaciones de Facturación**: Avisos de facturas emitidas
 - [x] **Correos SMTP**: Envío automático con Office365
 
+### ✅ DTE (Documento Tributario Electrónico)
+- [x] **JSON DTE Completo**: Generación según normativa salvadoreña
+  - Formato oficial con todos los campos requeridos
+  - Soporte para Factura Normal (tipo 01) y Crédito Fiscal (tipo 03)
+  - **Firma Digital Simulada**: Incluye sello digital SHA256, certificado simulado y fecha de firma
+  - Estructura completa de emisor, receptor, cuerpo documento y resumen
+- [x] **PDF Profesional**: Facturas con formato mejorado y legible
+  - Diseño moderno y profesional
+  - Información completa y bien estructurada
+  - Compatible con estándares de facturación
+
+### ✅ Dashboard y Reportes
+- [x] **Dashboard Principal**: Métricas clave del negocio
+  - **Facturación del Mes**: Muestra la facturación total del mes actual (no solo diaria)
+  - Total de clientes activos
+  - Total de productos activos
+  - Facturas emitidas en el mes
+  - Facturas pendientes
+
 ### ✅ Auditoría y Reportes
 - [x] **Bitácora Completa**: Registro de todas las acciones del sistema
 - [x] **Reportes de IVA**: Generación automática para cumplimiento fiscal
 - [x] **Backup de Datos**: Exportación manual de facturas en JSON
 - [x] **Filtros Avanzados**: Búsqueda por fecha, usuario, entidad y acción
+- [x] **Anulación con Observación**: DTE se anulan (no se eliminan) con motivo obligatorio
 
 ### ✅ Seguridad y Performance
 - [x] **Autenticación JWT**: Tokens seguros con rotación automática

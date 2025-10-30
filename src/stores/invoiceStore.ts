@@ -105,8 +105,15 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
         return;
       }
       if (updates.status === 'anulada') {
-        await apiFetch<void>(`/invoices/${id}/cancel`, { method: 'POST' });
-        set(state => ({ invoices: state.invoices.map(i => i.id === id ? { ...i, status: 'anulada' } : i), loading: false }));
+        const cancellationReason = (updates as any).cancellationReason;
+        if (!cancellationReason) {
+          throw new Error('La observación es obligatoria para anular una factura');
+        }
+        await apiFetch<void>(`/invoices/${id}/cancel`, { 
+          method: 'POST', 
+          body: { cancellationReason } 
+        });
+        set(state => ({ invoices: state.invoices.map(i => i.id === id ? { ...i, status: 'anulada', cancellationReason } : i), loading: false }));
         return;
       }
       // fallback: no generic PATCH endpoint for invoices in backend; refresh
