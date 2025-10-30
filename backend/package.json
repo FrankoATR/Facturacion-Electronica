@@ -11,14 +11,7 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:deploy": "prisma migrate deploy",
-    "prisma:seed": "ts-node ./prisma/seed.ts",
-<<<<<<< HEAD
-    "seed:products": "ts-node src/seeds/seed-products-adventureworks.ts",
-    "seed:invoices": "ts-node src/seeds/seed-invoices-dummy.ts"
-=======
-    "prisma:seed:products": "ts-node ./prisma/seed-products.ts",
-    "prisma:seed:invoices": "ts-node ./prisma/seed-invoices.ts"
->>>>>>> baaeab5 (feat: Implementación completa de mejoras y nuevas funcionalidades del sistema)
+    "prisma:seed": "ts-node ./prisma/seed.ts"
   },
   "dependencies": {
     "@prisma/client": "latest",

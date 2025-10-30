@@ -82,12 +82,11 @@ model Client {
   id         String        @id @default(cuid())
   name       String        // validable: sanitized string
   taxId      String        @unique // validable: fiscal identifier
-  nrc        String?       // Número de Registro de Contribuyente - requerido para crédito fiscal
   email      String?
   phone      String?
   address    String?
   nit        String?       // NIT for CCF
-  nrc        String?       // NRC for CCF
+  nrc        String?       // NRC for CCF - Número de Registro de Contribuyente - requerido para crédito fiscal
   giro       String?       // Business line
   actividadEconomica String? // Economic activity
   direccionFiscal    String? // Fiscal address
@@ -144,12 +143,9 @@ model Invoice {
   dte         DTE?
   issuedAt    DateTime?
   canceledAt  DateTime?
-<<<<<<< HEAD
+  cancellationReason String? // Observación obligatoria al anular DTE
   annulledAt  DateTime?
   annulReason String?
-=======
-  cancellationReason String? // Observación obligatoria al anular DTE
->>>>>>> baaeab5 (feat: Implementación completa de mejoras y nuevas funcionalidades del sistema)
   paymentMethod String?      // proposed minimal field
   notes       String?
   subtotal    Decimal        @db.Decimal(12, 2) @default(0)
