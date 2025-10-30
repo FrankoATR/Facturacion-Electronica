@@ -18,7 +18,11 @@ import { z } from 'zod';
 const clientSchema = z.object({
   name: z.string().min(1, 'Nombre es requerido').max(100, 'Nombre muy largo'),
   taxId: z.string().min(1, 'Identificador fiscal es requerido').regex(/^[0-9-]+$/, 'Formato inválido'),
+  nit: z.string().optional(),
   nrc: z.string().optional().refine((val) => !val || /^[0-9-]+$/.test(val), 'Formato NRC inválido'),
+  giro: z.string().optional(),
+  actividadEconomica: z.string().optional(),
+  direccionFiscal: z.string().optional(),
   email: z.string().optional().refine((val) => !val || z.string().email().safeParse(val).success, 'Email inválido'),
   phone: z.string().optional(),
   address: z.string().optional(),
@@ -37,6 +41,7 @@ export const Clients: React.FC = () => {
   const [viewingClient, setViewingClient] = useState<Client | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [formError, setFormError] = useState<string | null>(null);
+  const [clientType, setClientType] = useState<'natural' | 'juridica'>('natural');
   const itemsPerPage = 10;
 
   const canCreate = user && hasPermission(user.role, 'clientes', 'create');
@@ -76,20 +81,33 @@ export const Clients: React.FC = () => {
   const handleOpenModal = (client?: Client) => {
     setEditingClient(client || null);
     if (client) {
+      // Determinar el tipo de cliente basado en si tiene NRC o giro
+      const isJuridica = !!(client.nrc || client.giro || client.actividadEconomica);
+      setClientType(isJuridica ? 'juridica' : 'natural');
+
       reset({
         name: client.name,
         taxId: client.taxId,
+        nit: client.nit || '',
         nrc: client.nrc || '',
+        giro: client.giro || '',
+        actividadEconomica: client.actividadEconomica || '',
+        direccionFiscal: client.direccionFiscal || '',
         email: client.email || '',
         phone: client.phone || '',
         address: client.address || '',
         isActive: client.isActive
       });
     } else {
+      setClientType('natural');
       reset({
         name: '',
         taxId: '',
+        nit: '',
         nrc: '',
+        giro: '',
+        actividadEconomica: '',
+        direccionFiscal: '',
         email: '',
         phone: '',
         address: '',
@@ -286,46 +304,120 @@ export const Clients: React.FC = () => {
               <p className="text-sm">{formError}</p>
             </div>
           )}
-          
+
+          {/* Selector de tipo de cliente */}
+          <div className="border-b pb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-3">
+              Tipo de Cliente
+            </label>
+            <div className="flex space-x-4">
+              <button
+                type="button"
+                onClick={() => setClientType('natural')}
+                className={`flex-1 px-4 py-3 rounded-lg border-2 transition-all ${
+                  clientType === 'natural'
+                    ? 'border-blue-500 bg-blue-50 text-blue-700'
+                    : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
+                }`}
+              >
+                <div className="font-semibold">Persona Natural</div>
+                <div className="text-xs mt-1">Consumidor final, DUI</div>
+              </button>
+              <button
+                type="button"
+                onClick={() => setClientType('juridica')}
+                className={`flex-1 px-4 py-3 rounded-lg border-2 transition-all ${
+                  clientType === 'juridica'
+                    ? 'border-blue-500 bg-blue-50 text-blue-700'
+                    : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
+                }`}
+              >
+                <div className="font-semibold">Persona Jurídica</div>
+                <div className="text-xs mt-1">Empresa, NIT, NRC</div>
+              </button>
+            </div>
+          </div>
+
+          {/* Campos comunes */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input
-              label="Nombre/Razón Social"
+              label={clientType === 'natural' ? 'Nombre Completo' : 'Razón Social'}
               {...register('name')}
               error={errors.name?.message}
+              placeholder={clientType === 'natural' ? 'Juan Pérez' : 'Empresa S.A. de C.V.'}
             />
             <Input
-              label="Identificador Fiscal"
+              label={clientType === 'natural' ? 'DUI / NIT' : 'NIT'}
               {...register('taxId')}
               error={errors.taxId?.message}
-              placeholder="20-12345678-9"
-            />
-            <Input
-              label="NRC (Número de Registro de Contribuyente)"
-              {...register('nrc')}
-              error={errors.nrc?.message}
-              placeholder="12345-6 (requerido para crédito fiscal)"
-              helpText="Opcional. Requerido si el cliente emitirá facturas con crédito fiscal"
+              placeholder={clientType === 'natural' ? '01234567-8' : '0614-123456-001-1'}
             />
             <Input
               label="Email"
               type="email"
               {...register('email')}
               error={errors.email?.message}
+              placeholder="correo@ejemplo.com"
             />
             <Input
               label="Teléfono"
               {...register('phone')}
               error={errors.phone?.message}
+              placeholder="2222-2222"
             />
           </div>
-          
+
           <Input
             label="Dirección"
             {...register('address')}
             error={errors.address?.message}
+            placeholder="Colonia Escalón, San Salvador"
           />
 
-          <div className="flex items-center">
+          {/* Campos adicionales para Persona Jurídica */}
+          {clientType === 'juridica' && (
+            <div className="border-t pt-4 space-y-4">
+              <h3 className="text-sm font-semibold text-gray-700 mb-3">
+                Información Fiscal (Persona Jurídica)
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Input
+                  label="NIT (Número de Identificación Tributaria)"
+                  {...register('nit')}
+                  error={errors.nit?.message}
+                  placeholder="0614-123456-001-1"
+                  helpText="Requerido para Crédito Fiscal"
+                />
+                <Input
+                  label="NRC (Número de Registro de Contribuyente)"
+                  {...register('nrc')}
+                  error={errors.nrc?.message}
+                  placeholder="12345-6"
+                  helpText="Requerido para Crédito Fiscal"
+                />
+                <Input
+                  label="Giro Comercial"
+                  {...register('giro')}
+                  error={errors.giro?.message}
+                  placeholder="Comercio al por menor"
+                />
+                <Input
+                  label="Actividad Económica"
+                  {...register('actividadEconomica')}
+                  error={errors.actividadEconomica?.message}
+                  placeholder="47110 - Venta al por menor"
+                />
+              </div>
+              <Input
+                label="Dirección Fiscal"
+                {...register('direccionFiscal')}
+                error={errors.direccionFiscal?.message}
+                placeholder="Dirección registrada en hacienda"
+              />
+            </div>
+          )}
+
+          <div className="flex items-center pt-2">
             <input
               type="checkbox"
               id="isActive"
@@ -337,7 +429,7 @@ export const Clients: React.FC = () => {
             </label>
           </div>
 
-          <div className="flex justify-end space-x-3 pt-4">
+          <div className="flex justify-end space-x-3 pt-4 border-t">
             <Button type="button" variant="secondary" onClick={handleCloseModal}>
               Cancelar
             </Button>
@@ -375,36 +467,88 @@ export const Clients: React.FC = () => {
       >
         {viewingClient && (
           <div className="space-y-4">
+            {/* Tipo de Cliente */}
+            <div className="bg-gray-50 p-3 rounded-lg">
+              <span className="text-sm font-medium text-gray-700">Tipo: </span>
+              <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                (viewingClient.nrc || viewingClient.giro)
+                  ? 'bg-purple-100 text-purple-800'
+                  : 'bg-blue-100 text-blue-800'
+              }`}>
+                {(viewingClient.nrc || viewingClient.giro) ? 'Persona Jurídica' : 'Persona Natural'}
+              </span>
+            </div>
+
+            {/* Información básica */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700">Nombre/Razón Social</label>
                 <p className="mt-1 text-sm text-gray-900">{viewingClient.name}</p>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">Identificador Fiscal</label>
+                <label className="block text-sm font-medium text-gray-700">Identificador Fiscal (DUI/NIT)</label>
                 <p className="mt-1 text-sm text-gray-900">{viewingClient.taxId}</p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700">Email</label>
-                <p className="mt-1 text-sm text-gray-900">{viewingClient.email}</p>
+                <p className="mt-1 text-sm text-gray-900">{viewingClient.email || 'No especificado'}</p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700">Teléfono</label>
-                <p className="mt-1 text-sm text-gray-900">{viewingClient.phone}</p>
+                <p className="mt-1 text-sm text-gray-900">{viewingClient.phone || 'No especificado'}</p>
               </div>
             </div>
-            
+
             <div>
               <label className="block text-sm font-medium text-gray-700">Dirección</label>
-              <p className="mt-1 text-sm text-gray-900">{viewingClient.address}</p>
+              <p className="mt-1 text-sm text-gray-900">{viewingClient.address || 'No especificado'}</p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Información fiscal (si es persona jurídica) */}
+            {(viewingClient.nit || viewingClient.nrc || viewingClient.giro || viewingClient.actividadEconomica || viewingClient.direccionFiscal) && (
+              <div className="border-t pt-4 space-y-4">
+                <h3 className="text-sm font-semibold text-gray-700">Información Fiscal</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {viewingClient.nit && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">NIT</label>
+                      <p className="mt-1 text-sm text-gray-900">{viewingClient.nit}</p>
+                    </div>
+                  )}
+                  {viewingClient.nrc && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">NRC</label>
+                      <p className="mt-1 text-sm text-gray-900">{viewingClient.nrc}</p>
+                    </div>
+                  )}
+                  {viewingClient.giro && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Giro Comercial</label>
+                      <p className="mt-1 text-sm text-gray-900">{viewingClient.giro}</p>
+                    </div>
+                  )}
+                  {viewingClient.actividadEconomica && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Actividad Económica</label>
+                      <p className="mt-1 text-sm text-gray-900">{viewingClient.actividadEconomica}</p>
+                    </div>
+                  )}
+                </div>
+                {viewingClient.direccionFiscal && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Dirección Fiscal</label>
+                    <p className="mt-1 text-sm text-gray-900">{viewingClient.direccionFiscal}</p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t pt-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700">Estado</label>
                 <span className={`mt-1 inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                  viewingClient.isActive 
-                    ? 'bg-green-100 text-green-800' 
+                  viewingClient.isActive
+                    ? 'bg-green-100 text-green-800'
                     : 'bg-red-100 text-red-800'
                 }`}>
                   {viewingClient.isActive ? 'Activo' : 'Inactivo'}
@@ -413,7 +557,11 @@ export const Clients: React.FC = () => {
               <div>
                 <label className="block text-sm font-medium text-gray-700">Fecha de Registro</label>
                 <p className="mt-1 text-sm text-gray-900">
-                  {new Date(viewingClient.createdAt).toLocaleDateString()}
+                  {new Date(viewingClient.createdAt).toLocaleDateString('es-SV', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                  })}
                 </p>
               </div>
             </div>

@@ -176,37 +176,52 @@ export const dteController = {
         },
       });
 
-      // Intentar enviar la factura por correo al cliente
+      // Enviar la factura por correo al cliente de forma asíncrona
+      // No bloqueamos la respuesta HTTP esperando el envío del email
       if (updatedInvoice.client?.email) {
-        try {
-          const [dto, dteDoc] = await Promise.all([
-            buildInvoiceDto(invoiceId),
-            buildDTEDocument(invoiceId),
-          ]);
+        // Ejecutar en el siguiente tick para no bloquear la respuesta
+        setImmediate(async () => {
+          try {
+            console.log(`[DTE] Iniciando envío de correo para factura ${updatedInvoice.number} a ${updatedInvoice.client.email}`);
 
-          if (dto && dteDoc) {
-            const pdfBuffer = await generateInvoicePdfBuffer(dto, dteDoc);
-            const emailResult = await emailService.sendInvoiceEmail(
-              updatedInvoice.client.email,
-              updatedInvoice.number,
-              updatedInvoice.client.name,
-              Number(updatedInvoice.total),
-              pdfBuffer
-            );
+            const [dto, dteDoc] = await Promise.all([
+              buildInvoiceDto(invoiceId),
+              buildDTEDocument(invoiceId),
+            ]);
 
-            if (!emailResult.success) {
-              console.error(`[DTE] Error al enviar correo de factura ${updatedInvoice.number}:`, emailResult.error);
+            if (dto && dteDoc) {
+              const pdfBuffer = await generateInvoicePdfBuffer(dto, dteDoc);
+              const jsonBuffer = Buffer.from(JSON.stringify(dteDoc, null, 2), "utf8");
+
+              console.log(`[DTE] PDF y JSON generados correctamente para factura ${updatedInvoice.number}`);
+
+              const emailResult = await emailService.sendInvoiceEmail(
+                updatedInvoice.client.email,
+                updatedInvoice.number,
+                updatedInvoice.client.name,
+                Number(updatedInvoice.total),
+                pdfBuffer,
+                jsonBuffer
+              );
+
+              if (!emailResult.success) {
+                console.error(`[DTE] ❌ Error al enviar correo de factura ${updatedInvoice.number}:`, emailResult.error);
+              } else if (emailResult.skipped) {
+                console.log(`[DTE] ⏭️ Envío de correo omitido para factura ${updatedInvoice.number}: ${emailResult.reason}`);
+              } else {
+                console.log(`[DTE] ✅ Correo de factura ${updatedInvoice.number} enviado exitosamente a ${updatedInvoice.client.email}`);
+              }
             } else {
-              console.log(`[DTE] Correo de factura ${updatedInvoice.number} enviado a ${updatedInvoice.client.email}`);
+              console.warn(`[DTE] ⚠️ No se pudo generar DTO o DTE para enviar factura ${updatedInvoice.number} por correo`);
             }
-          } else {
-            console.warn(`[DTE] No se pudo generar DTO o DTE para enviar factura ${updatedInvoice.number} por correo`);
+          } catch (emailError: any) {
+            console.error(`[DTE] ❌ Error crítico al generar o enviar correo de factura ${updatedInvoice.number}:`, emailError.message);
+            console.error(emailError.stack);
           }
-        } catch (emailError) {
-          console.error("[DTE] Error al generar o enviar correo de factura:", emailError);
-        }
+        });
+        console.log(`[DTE] Envío de correo programado para factura ${updatedInvoice.number} (procesamiento asíncrono)`);
       } else {
-        console.log(`[DTE] Factura ${updatedInvoice.number} firmada sin correo de cliente disponible, no se envía email`);
+        console.log(`[DTE] ⚠️ Factura ${updatedInvoice.number} firmada sin correo de cliente disponible, no se envía email`);
       }
 
       return res.json({

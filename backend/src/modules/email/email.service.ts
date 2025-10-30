@@ -99,7 +99,8 @@ export const emailService = {
     invoiceNumber: string,
     clientName: string,
     total: number,
-    pdfBuffer: Buffer
+    pdfBuffer: Buffer,
+    dteJsonBuffer?: Buffer
   ) {
     const subject = `Factura Electrónica ${invoiceNumber} - EleCtroZ`;
     
@@ -230,17 +231,27 @@ export const emailService = {
       </html>
     `;
 
+    const attachments: EmailOptions["attachments"] = [
+      {
+        filename: `Factura-${invoiceNumber}.pdf`,
+        content: pdfBuffer,
+        contentType: "application/pdf",
+      },
+    ];
+
+    if (dteJsonBuffer) {
+      attachments.push({
+        filename: `DTE-${invoiceNumber}.json`,
+        content: dteJsonBuffer,
+        contentType: "application/json",
+      });
+    }
+
     return this.sendEmail({
       to: clientEmail,
       subject,
       html,
-      attachments: [
-        {
-          filename: `Factura-${invoiceNumber}.pdf`,
-          content: pdfBuffer,
-          contentType: "application/pdf",
-        },
-      ],
+      attachments,
     });
   },
 

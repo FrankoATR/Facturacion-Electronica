@@ -5,13 +5,15 @@
   "main": "dist/server.js",
   "types": "dist/types.d.ts",
   "scripts": {
-    "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
-    "build": "tsc -p tsconfig.json",
-    "start": "node dist/server.js",
-    "prisma:generate": "prisma generate",
-    "prisma:migrate": "prisma migrate dev",
-    "prisma:deploy": "prisma migrate deploy",
-    "prisma:seed": "ts-node ./prisma/seed.ts"
+  "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
+  "build": "tsc -p tsconfig.json",
+  "start": "node dist/server.js",
+  "prisma:generate": "prisma generate",
+  "prisma:migrate": "prisma migrate dev",
+  "prisma:deploy": "prisma migrate deploy",
+  "prisma:seed": "ts-node ./prisma/seed.ts",
+  "prisma:seed:products": "ts-node ./prisma/seed-products.ts",
+  "prisma:seed:invoices": "ts-node ./prisma/seed-invoices.ts"
   },
   "dependencies": {
     "@prisma/client": "latest",

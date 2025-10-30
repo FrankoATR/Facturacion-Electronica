@@ -1,9 +1,10 @@
 import { Request, Response } from "express";
-import { clientService } from "./client.service";
+import { buildSanitizedClientData, clientService } from "./client.service";
 import { parsePagination } from "../../common/pagination";
 import { UpsertClientDto } from "./client.dto";
 import { prisma } from "../../config/prisma";
 import { hashPassword } from "../../utils/password";
+import { ClientCreateInput } from "./client.repository";
 
 export const clientController = {
   async list(req: Request, res: Response) {
@@ -17,7 +18,8 @@ export const clientController = {
     if (!parsed.success) return res.status(400).json({ message: "Invalid" });
     try {
       const result = await prisma.$transaction(async (tx) => {
-        const created = await tx.client.create({ data: parsed.data as any });
+        const sanitizedData = buildSanitizedClientData(parsed.data as ClientCreateInput);
+        const created = await tx.client.create({ data: sanitizedData as any });
         const pwd = Math.random().toString(36).slice(-10);
         let email = (created.email ?? `${created.taxId}@example.com`).toLowerCase();
         

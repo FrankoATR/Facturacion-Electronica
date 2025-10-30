@@ -7,6 +7,11 @@ export type ClientCreateInput = {
   email?: string | null;
   phone?: string | null;
   address?: string | null;
+  nit?: string | null;
+  nrc?: string | null;
+  giro?: string | null;
+  actividadEconomica?: string | null;
+  direccionFiscal?: string | null;
   status?: ClientStatus;
 };
 

@@ -58,6 +58,7 @@ dteRouter.post("/:invoiceId/send", authenticate, authorize(["ADMIN", "SELLER"]),
         
         if (dto && dteDoc) {
           const pdfBuffer = await generateInvoicePdfBuffer(dto, dteDoc);
+          const jsonBuffer = Buffer.from(JSON.stringify(dteDoc, null, 2), "utf8");
 
           // Enviar email y verificar resultado
           const emailResult = await emailService.sendInvoiceEmail(
@@ -65,7 +66,8 @@ dteRouter.post("/:invoiceId/send", authenticate, authorize(["ADMIN", "SELLER"]),
             inv.number,
             inv.client.name,
             Number(inv.total),
-            pdfBuffer
+            pdfBuffer,
+            jsonBuffer
           );
 
           if (emailResult.success) {

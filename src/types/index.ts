@@ -12,7 +12,6 @@ export interface Client {
   id: string;
   name: string;
   taxId: string; // Identificador fiscal
-  nrc?: string; // Número de Registro de Contribuyente - requerido para crédito fiscal
   email: string;
   phone: string;
   address: string;

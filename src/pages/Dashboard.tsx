@@ -574,7 +574,7 @@ export const Dashboard: React.FC = () => {
           <div className="grid grid-cols-2 gap-4">
             {moduleCards.map((module) => {
       const canAccess = user && hasPermission(user.role, module.module, module.action);
-              
+
               if (!canAccess) return null;
 
               return (
@@ -595,6 +595,115 @@ export const Dashboard: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Sección específica para AUDITOR - Bitácora de Auditoría */}
+      {user.role === 'AUDITOR' && (
+        <div className="bg-white p-6 rounded-lg shadow-sm border mt-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-gray-900">Bitácora de Auditoría</h2>
+            <Link
+              to="/auditoria"
+              className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+            >
+              Ver todo →
+            </Link>
+          </div>
+          <p className="text-sm text-gray-600 mb-4">
+            Monitoreo de actividades del sistema y logs de auditoría. Como auditor, tienes acceso completo al historial de operaciones.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Link
+              to="/auditoria"
+              className="p-4 border border-gray-200 rounded-lg hover:border-blue-300 hover:shadow-sm transition-all"
+            >
+              <div className="w-8 h-8 rounded-lg bg-purple-100 text-purple-600 flex items-center justify-center mb-3">
+                <History size={16} />
+              </div>
+              <h3 className="font-medium text-gray-900 text-sm">Historial Completo</h3>
+              <p className="text-xs text-gray-600 mt-1">Todas las operaciones registradas</p>
+            </Link>
+            <Link
+              to="/reportes"
+              className="p-4 border border-gray-200 rounded-lg hover:border-blue-300 hover:shadow-sm transition-all"
+            >
+              <div className="w-8 h-8 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center mb-3">
+                <FileText size={16} />
+              </div>
+              <h3 className="font-medium text-gray-900 text-sm">Reportes</h3>
+              <p className="text-xs text-gray-600 mt-1">Generar informes de auditoría</p>
+            </Link>
+            <Link
+              to="/historial"
+              className="p-4 border border-gray-200 rounded-lg hover:border-blue-300 hover:shadow-sm transition-all"
+            >
+              <div className="w-8 h-8 rounded-lg bg-green-100 text-green-600 flex items-center justify-center mb-3">
+                <TrendingUp size={16} />
+              </div>
+              <h3 className="font-medium text-gray-900 text-sm">Ventas</h3>
+              <p className="text-xs text-gray-600 mt-1">Historial de transacciones</p>
+            </Link>
+          </div>
+        </div>
+      )}
+
+      {/* Sección específica para ACCOUNTANT - Reportes Contables */}
+      {user.role === 'ACCOUNTANT' && (
+        <div className="bg-white p-6 rounded-lg shadow-sm border mt-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-gray-900">Reportes Contables</h2>
+            <Link
+              to="/reportes"
+              className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+            >
+              Ver todos →
+            </Link>
+          </div>
+          <p className="text-sm text-gray-600 mb-4">
+            Acceso a reportes fiscales, IVA, historial de ventas y análisis contable completo.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Link
+              to="/reportes"
+              className="p-4 border border-gray-200 rounded-lg hover:border-green-300 hover:shadow-sm transition-all"
+            >
+              <div className="w-8 h-8 rounded-lg bg-green-100 text-green-600 flex items-center justify-center mb-3">
+                <DollarSign size={16} />
+              </div>
+              <h3 className="font-medium text-gray-900 text-sm">Reporte IVA</h3>
+              <p className="text-xs text-gray-600 mt-1">Cálculo de impuestos mensuales</p>
+              <p className="text-lg font-bold text-gray-900 mt-2">
+                ${((dashboardValues.salesThisMonth || 0) * 0.13).toFixed(2)}
+              </p>
+            </Link>
+            <Link
+              to="/historial"
+              className="p-4 border border-gray-200 rounded-lg hover:border-green-300 hover:shadow-sm transition-all"
+            >
+              <div className="w-8 h-8 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center mb-3">
+                <History size={16} />
+              </div>
+              <h3 className="font-medium text-gray-900 text-sm">Historial de Ventas</h3>
+              <p className="text-xs text-gray-600 mt-1">Todas las transacciones</p>
+              <p className="text-lg font-bold text-gray-900 mt-2">
+                ${(dashboardValues.salesThisMonth || 0).toFixed(2)}
+              </p>
+            </Link>
+            <Link
+              to="/facturacion"
+              className="p-4 border border-gray-200 rounded-lg hover:border-green-300 hover:shadow-sm transition-all"
+            >
+              <div className="w-8 h-8 rounded-lg bg-purple-100 text-purple-600 flex items-center justify-center mb-3">
+                <FileText size={16} />
+              </div>
+              <h3 className="font-medium text-gray-900 text-sm">Facturas Emitidas</h3>
+              <p className="text-xs text-gray-600 mt-1">Ver todas las facturas</p>
+              <p className="text-lg font-bold text-gray-900 mt-2">
+                {dashboardValues.invoicesThisMonth || 0}
+              </p>
+            </Link>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

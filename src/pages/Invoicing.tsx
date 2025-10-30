@@ -239,19 +239,23 @@ export const Invoicing: React.FC = () => {
       const draftId = created.id;
       setDraftInvoiceId(draftId);
 
-      // Then issue the invoice
-      await updateInvoice(draftId, { status: 'emmited' });
-
-      showSuccess('Factura emitida exitosamente');
+      showSuccess('Factura creada. Procediendo a firmar DTE...');
       setIsPreviewModalOpen(false);
-      handleCloseCreateModal();
+
+      // Refresh invoices to get the complete invoice data
+      await fetchInvoices();
+
+      // Find the created invoice
+      const createdInvoice = invoices.find(inv => inv.id === draftId) || created;
+
+      // Open the Sign DTE modal automatically
+      setSigningInvoice(createdInvoice);
+      setIsSignDTEModalOpen(true);
+
       setPendingInvoiceData(null);
-      setDraftInvoiceId(null);
-      // Refresh the invoices list
-      fetchInvoices();
     } catch (error: any) {
-      console.error('Error al emitir factura:', error);
-      const errorMessage = error.message || 'Error al emitir factura';
+      console.error('Error al crear factura:', error);
+      const errorMessage = error.message || 'Error al crear factura';
       showError(`Error: ${errorMessage}`);
     }
   };
@@ -309,7 +313,10 @@ export const Invoicing: React.FC = () => {
   };
 
   const handleSignDTESuccess = async () => {
+    handleCloseCreateModal();
+    setDraftInvoiceId(null);
     await fetchInvoices(); // Refresh the list
+    showSuccess('DTE firmado exitosamente. Correo enviado al cliente.');
   };
 
   const getClientName = (clientId: string) => {
