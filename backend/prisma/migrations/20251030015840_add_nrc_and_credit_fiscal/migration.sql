@@ -1,8 +1,16 @@
--- AlterEnum
-ALTER TYPE "InvoiceType" ADD VALUE 'CREDIT_FISCAL';
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_enum e
+    JOIN pg_type t ON e.enumtypid = t.oid
+    WHERE t.typname = 'InvoiceType'
+      AND e.enumlabel = 'CREDIT_FISCAL'
+  ) THEN
+    ALTER TYPE "InvoiceType" ADD VALUE 'CREDIT_FISCAL';
+  END IF;
+END $$;
 
--- AlterTable
-ALTER TABLE "Client" ADD COLUMN     "nrc" TEXT;
+ALTER TABLE "Client" ADD COLUMN IF NOT EXISTS "nrc" TEXT;
 
--- AlterTable
-ALTER TABLE "Invoice" ADD COLUMN     "cancellationReason" TEXT;
+ALTER TABLE "Invoice" ADD COLUMN IF NOT EXISTS "cancellationReason" TEXT;

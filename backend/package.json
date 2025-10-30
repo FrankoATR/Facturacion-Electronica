@@ -41,6 +41,7 @@
     "@types/jsonwebtoken": "^9.0.6",
     "@types/morgan": "^1.9.9",
     "@types/node": "^22.5.4",
+    "@types/pdfkit": "^0.17.3",
     "prisma": "latest",
     "ts-node": "^10.9.2",
     "ts-node-dev": "^2.0.0",

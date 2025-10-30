@@ -129,6 +129,39 @@ Sistema completo de facturación electrónica desarrollado para El Salvador, con
 
 ### Configuración Inicial Completa
 
+#### (WSL bash) Inicialización rápida del proyecto
+
+```bash
+# 0) Abrir WSL bash y ubicarse en backend
+cd "/mnt/c/Users/luism/Desktop/Proyecto Facturacion Electronica/Facturacion-Electronica/backend"
+
+# 1) Instalar dependencias
+npm install
+
+# 2) Generar cliente Prisma
+npx prisma generate
+
+# 3) Aplicar migraciones (desarrollo)
+npx prisma migrate dev
+
+# Si Prisma pide reset porque una migración fue editada:
+# ADVERTENCIA: borra los datos de desarrollo
+npx prisma migrate reset --force
+npx prisma generate
+npx prisma migrate dev
+
+# 4) Semillas
+npx ts-node prisma/seed.ts
+npx ts-node prisma/seed-products.ts
+npx ts-node prisma/seed-invoices.ts
+
+# 5) Ejecutar backend en dev
+npm run dev
+
+# (Opcional) Prisma Studio
+npx prisma studio
+```
+
 #### 1. Configurar Base de Datos PostgreSQL
 
 ```bash

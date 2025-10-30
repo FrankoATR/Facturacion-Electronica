@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 import { Router, Request, Response, NextFunction } from "express";
 import { authenticate, authorize } from "../../middleware/auth";
 import { prisma } from "../../config/prisma";
@@ -70,7 +69,7 @@ dteRouter.post("/:invoiceId/send", authenticate, authorize(["ADMIN", "SELLER"]),
           });
           const chunks: Buffer[] = [];
           
-          pdfDoc.on('data', (chunk) => chunks.push(chunk));
+          pdfDoc.on('data', (chunk: Buffer) => chunks.push(chunk));
           
           await new Promise<void>((resolve) => {
             pdfDoc.on('end', () => resolve());
@@ -399,112 +398,6 @@ dteRouter.get("/:invoiceId/pdf", authenticateFromQueryOrHeader, authorize(["ADMI
   doc.end();
 });
 
-
-=======
-import { Router, Request, Response, NextFunction } from "express";
-import { authenticate, authorize } from "../../middleware/auth";
-import { prisma } from "../../config/prisma";
-import PDFDocument from "pdfkit";
-import { buildInvoiceDto, buildDTEDocument, trySendDte } from "../../modules/dte/dte.service";
-import { verifyToken } from "../../utils/jwt";
-import { emailService } from "../../modules/email/email.service";
-
-export const dteRouter = Router();
-
-// Allow auth from header or token query param for file downloads
-function authenticateFromQueryOrHeader(req: Request, res: Response, next: NextFunction) {
-  const header = req.headers.authorization;
-  const token = (req.query.token as string | undefined) || undefined;
-  if (header && header.startsWith("Bearer ")) {
-    return authenticate(req, res, next);
-  }
-  if (token) {
-    try {
-      const payload = verifyToken(token);
-      req.user = payload;
-      return next();
-    } catch {
-      return res.status(401).json({ message: "Invalid token" });
-    }
-  }
-  return res.status(401).json({ message: "Unauthorized" });
-}
-
-dteRouter.post("/:invoiceId/send", authenticate, authorize(["ADMIN", "SELLER"]), async (req, res) => {
-  const { invoiceId } = req.params;
-  const inv = await prisma.invoice.findUnique({
-    where: { id: invoiceId },
-    include: { client: true },
-  });
-  if (!inv) return res.status(404).json({ message: "Not found" });
-
-  try {
-    // Marcar como enviado
-    await prisma.$transaction(async (tx) => {
-      await tx.invoice.update({ where: { id: invoiceId }, data: { electronicFiscalStamp: `stamp-${invoiceId}` } });
-    });
-    await trySendDte(invoiceId);
-
-    // Si es factura electrónica y el cliente tiene email, enviar por correo
-    if (inv.type === "ELECTRONIC" && inv.client.email) {
-      try {
-        // Generar PDF en buffer
-        const dto = await buildInvoiceDto(invoiceId);
-        const dteDoc = await buildDTEDocument(invoiceId);
-        
-        if (dto && dteDoc) {
-          const pdfDoc = new PDFDocument({ margin: 50, size: 'LETTER' });
-          const chunks: Buffer[] = [];
-          
-          pdfDoc.on('data', (chunk) => chunks.push(chunk));
-          
-          await new Promise<void>((resolve) => {
-            pdfDoc.on('end', () => resolve());
-            
-            // Generar mismo contenido del PDF (simplificado para el buffer)
-            pdfDoc.fontSize(24).fillColor('#667eea').text('🏪 ADVENTURE WORKS', { align: 'center' });
-            pdfDoc.fontSize(10).fillColor('#333').text('ADVENTURE WORKS S.A. DE C.V.', { align: 'center' });
-            pdfDoc.text('NIT: 0614-031289-001-9 | NRC: 12345-6', { align: 'center' });
-            pdfDoc.moveDown();
-            pdfDoc.fontSize(16).text('FACTURA ELECTRÓNICA', { align: 'center' });
-            pdfDoc.fontSize(12).text(`No. ${dto.number}`, { align: 'center' });
-            pdfDoc.moveDown();
-            pdfDoc.fontSize(10).text(`Cliente: ${dto.client.name}`);
-            pdfDoc.text(`Total: $${dto.totals.total.toFixed(2)}`);
-            pdfDoc.end();
-          });
-
-          const pdfBuffer = Buffer.concat(chunks);
-          
-          await emailService.sendInvoiceEmail(
-            inv.client.email,
-            inv.number,
-            inv.client.name,
-            Number(inv.total),
-            pdfBuffer
-          );
-        }
-      } catch (emailError) {
-        console.error("Error al enviar correo:", emailError);
-        // No fallar la operación si el correo falla
-      }
-    }
-
-    res.json({ message: "DTE accepted and email sent" });
-  } catch (e: any) {
-    res.status(502).json({ message: "DTE send failed" });
-  }
-});
-
-dteRouter.post("/:invoiceId/retry", authenticate, authorize(["ADMIN", "SELLER"]), async (req, res) => {
-  const { invoiceId } = req.params;
-  const dte = await prisma.dTE.findUnique({ where: { invoiceId } });
-  if (!dte) return res.status(404).json({ message: "DTE not found" });
-
-  await trySendDte(invoiceId);
-  res.json({ message: "Retry processed" });
-});
-
 // Download DTE JSON (formato oficial El Salvador con firma digital simulada)
 dteRouter.get("/:invoiceId/json", authenticateFromQueryOrHeader, authorize(["ADMIN", "SELLER", "ACCOUNTANT", "AUDITOR", "CUSTOMER"]), async (req, res) => {
   const dteDoc = await buildDTEDocument(req.params.invoiceId);
@@ -693,6 +586,3 @@ dteRouter.get("/:invoiceId/pdf", authenticateFromQueryOrHeader, authorize(["ADMI
 
   doc.end();
 });
-
-
->>>>>>> baaeab5 (feat: Implementación completa de mejoras y nuevas funcionalidades del sistema)
