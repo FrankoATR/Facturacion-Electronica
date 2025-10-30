@@ -35,8 +35,12 @@ export const invoiceController = {
   },
   async cancel(req: Request, res: Response) {
     const { id } = req.params;
+    const { cancellationReason } = req.body;
     try {
-      await invoiceService.cancel(req.user?.id, id);
+      if (!cancellationReason || typeof cancellationReason !== 'string' || cancellationReason.trim().length === 0) {
+        return res.status(400).json({ message: "La observación es obligatoria para anular una factura" });
+      }
+      await invoiceService.cancel(req.user?.id, id, cancellationReason);
       res.status(204).send();
     } catch (e: any) {
       const msg = e.message ?? "Invalid";

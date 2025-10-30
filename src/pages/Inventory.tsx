@@ -1,6 +1,10 @@
 // TODO: validar vs PDF - Módulo de Control de Inventario
 import React, { useEffect, useState } from 'react';
+<<<<<<< HEAD
 import { Plus, Search, Edit, Trash2, Package, AlertTriangle, Grid3x3, List } from 'lucide-react';
+=======
+import { Plus, Search, Edit, Trash2, Package, AlertTriangle, Grid, List } from 'lucide-react';
+>>>>>>> baaeab5 (feat: Implementación completa de mejoras y nuevas funcionalidades del sistema)
 import { useProductStore } from '../stores/productStore';
 import { useAuthStore } from '../stores/authStore';
 import { hasPermission } from '../config/permissions';
@@ -42,7 +46,12 @@ export const Inventory: React.FC = () => {
   const [stockEditingId, setStockEditingId] = useState<string | null>(null);
   const [newStock, setNewStock] = useState<number>(0);
   const [currentPage, setCurrentPage] = useState(1);
+<<<<<<< HEAD
   const itemsPerPage = viewMode === 'table' ? 10 : 12;
+=======
+  const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
+  const itemsPerPage = 10;
+>>>>>>> baaeab5 (feat: Implementación completa de mejoras y nuevas funcionalidades del sistema)
 
   const canCreate = user && hasPermission(user.role, 'inventario', 'create');
   const canUpdate = user && hasPermission(user.role, 'inventario', 'update');
@@ -341,6 +350,7 @@ export const Inventory: React.FC = () => {
         </div>
       )}
 
+<<<<<<< HEAD
       {/* Filters and View Toggle */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between space-y-4 sm:space-y-0 sm:space-x-4">
         <div className="flex items-center space-x-4 flex-1 w-full">
@@ -355,6 +365,20 @@ export const Inventory: React.FC = () => {
                 className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
+=======
+      {/* Filters y Toggle Vista */}
+      <div className="flex items-center space-x-4">
+        <div className="flex-1 max-w-md">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
+            <input
+              type="text"
+              placeholder="Buscar por nombre o SKU..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+>>>>>>> baaeab5 (feat: Implementación completa de mejoras y nuevas funcionalidades del sistema)
           </div>
           
           <select
@@ -406,6 +430,46 @@ export const Inventory: React.FC = () => {
             <span className="ml-2 text-sm font-medium hidden sm:inline">Cuadrícula</span>
           </button>
         </div>
+<<<<<<< HEAD
+=======
+        
+        <select
+          value={categoryFilter}
+          onChange={(e) => setCategoryFilter(e.target.value)}
+          className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+        >
+          <option value="">Todas las categorías</option>
+          {categories.map(category => (
+            <option key={category} value={category}>{category}</option>
+          ))}
+        </select>
+
+        {/* Toggle Vista Lista/Grid */}
+        <div className="flex items-center border border-gray-300 rounded-lg overflow-hidden">
+          <button
+            onClick={() => setViewMode('list')}
+            className={`px-3 py-2 flex items-center space-x-2 transition-colors ${
+              viewMode === 'list'
+                ? 'bg-blue-500 text-white'
+                : 'bg-white text-gray-600 hover:bg-gray-50'
+            }`}
+            title="Vista Lista"
+          >
+            <List size={16} />
+          </button>
+          <button
+            onClick={() => setViewMode('grid')}
+            className={`px-3 py-2 flex items-center space-x-2 transition-colors ${
+              viewMode === 'grid'
+                ? 'bg-blue-500 text-white'
+                : 'bg-white text-gray-600 hover:bg-gray-50'
+            }`}
+            title="Vista Grid"
+          >
+            <Grid size={16} />
+          </button>
+        </div>
+>>>>>>> baaeab5 (feat: Implementación completa de mejoras y nuevas funcionalidades del sistema)
       </div>
 
       {/* Error Message */}
@@ -415,12 +479,31 @@ export const Inventory: React.FC = () => {
         </div>
       )}
 
+<<<<<<< HEAD
       {/* Content - Table or Grid */}
       {viewMode === 'table' ? (
         <DataTable
           data={paginatedProducts}
           columns={columns}
           loading={loading}
+=======
+      {/* Vista Lista o Grid */}
+      {loading ? (
+        <div className="text-center py-12">
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <p className="mt-2 text-gray-600">Cargando productos...</p>
+        </div>
+      ) : paginatedProducts.length === 0 ? (
+        <div className="text-center py-12 bg-gray-50 rounded-lg">
+          <Package className="mx-auto h-12 w-12 text-gray-400" />
+          <p className="mt-4 text-gray-600">No se encontraron productos</p>
+        </div>
+      ) : viewMode === 'list' ? (
+        <DataTable
+          data={paginatedProducts}
+          columns={columns}
+          loading={false}
+>>>>>>> baaeab5 (feat: Implementación completa de mejoras y nuevas funcionalidades del sistema)
           pagination={{
             currentPage,
             totalPages,
@@ -430,6 +513,7 @@ export const Inventory: React.FC = () => {
         />
       ) : (
         <>
+<<<<<<< HEAD
           {loading ? (
             <div className="flex justify-center items-center py-12">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
@@ -460,6 +544,144 @@ export const Inventory: React.FC = () => {
                 onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
                 disabled={currentPage === totalPages}
                 className="px-3 py-2 border border-gray-300 rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+=======
+          {/* Vista Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {paginatedProducts.map((product) => (
+              <div
+                key={product.id}
+                className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow"
+              >
+                {/* Header Card */}
+                <div className="flex justify-between items-start mb-3">
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-gray-900 text-sm line-clamp-2">{product.name}</h3>
+                    <p className="text-xs text-gray-500 mt-1">SKU: {product.sku}</p>
+                  </div>
+                  <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                    product.isActive
+                      ? 'bg-green-100 text-green-800'
+                      : 'bg-red-100 text-red-800'
+                  }`}>
+                    {product.isActive ? 'Activo' : 'Inactivo'}
+                  </span>
+                </div>
+
+                {/* Categoría */}
+                <div className="mb-3">
+                  <span className="inline-flex px-2 py-1 text-xs font-medium rounded bg-blue-100 text-blue-800">
+                    {product.category}
+                  </span>
+                </div>
+
+                {/* Información */}
+                <div className="space-y-2 mb-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-gray-600">Precio:</span>
+                    <span className="text-sm font-semibold text-gray-900">${product.unitPrice.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-gray-600">IVA:</span>
+                    <span className="text-sm text-gray-700">{product.taxRate}%</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-gray-600">Stock:</span>
+                    <div className="flex items-center space-x-1">
+                      <span className={`text-sm font-medium ${
+                        product.stock <= product.lowStockThreshold
+                          ? 'text-red-600'
+                          : 'text-gray-900'
+                      }`}>
+                        {product.stock}
+                      </span>
+                      {product.stock <= product.lowStockThreshold && (
+                        <AlertTriangle size={14} className="text-red-500" />
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Acciones */}
+                <div className="flex space-x-2 pt-3 border-t border-gray-200">
+                  {canUpdate && (
+                    <button
+                      onClick={() => handleOpenModal(product)}
+                      className="flex-1 px-2 py-1.5 text-xs text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                      title="Editar"
+                    >
+                      <Edit size={14} className="mx-auto" />
+                    </button>
+                  )}
+                  {canUpdate && (
+                    <button
+                      onClick={() => handleStockEdit(product)}
+                      className="flex-1 px-2 py-1.5 text-xs text-green-600 hover:bg-green-50 rounded transition-colors"
+                      title="Editar Stock"
+                    >
+                      <Package size={14} className="mx-auto" />
+                    </button>
+                  )}
+                  {canDelete && (
+                    <button
+                      onClick={() => handleDelete(product)}
+                      className="flex-1 px-2 py-1.5 text-xs text-red-600 hover:bg-red-50 rounded transition-colors"
+                      title="Eliminar"
+                    >
+                      <Trash2 size={14} className="mx-auto" />
+                    </button>
+                  )}
+                </div>
+
+                {/* Edición de Stock Inline */}
+                {stockEditingId === product.id && (
+                  <div className="mt-3 pt-3 border-t border-gray-200">
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="number"
+                        value={newStock}
+                        onChange={(e) => setNewStock(Number(e.target.value))}
+                        className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded"
+                        min="0"
+                      />
+                      <button
+                        onClick={() => handleStockSave(product.id)}
+                        className="text-green-600 hover:text-green-800"
+                        title="Guardar"
+                      >
+                        ✓
+                      </button>
+                      <button
+                        onClick={handleStockCancel}
+                        className="text-red-600 hover:text-red-800"
+                        title="Cancelar"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* Paginación para Grid */}
+          {totalPages > 1 && (
+            <div className="flex justify-center items-center space-x-2 mt-6">
+              <button
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                disabled={currentPage === 1}
+                className="px-3 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+              >
+                Anterior
+              </button>
+              <span className="text-sm text-gray-600">
+                Página {currentPage} de {totalPages}
+              </span>
+              <button
+                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                disabled={currentPage === totalPages}
+                className="px-3 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+>>>>>>> baaeab5 (feat: Implementación completa de mejoras y nuevas funcionalidades del sistema)
               >
                 Siguiente
               </button>

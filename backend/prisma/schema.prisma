@@ -27,8 +27,9 @@ enum ProductStatus {
 }
 
 enum InvoiceType {
-  ELECTRONIC // proposed field to distinguish electronic vs. traditional
-  TRADITIONAL
+  ELECTRONIC // Factura electrónica normal
+  TRADITIONAL // Factura tradicional
+  CREDIT_FISCAL // Crédito Fiscal (tipo DTE 03) - requiere NRC del cliente
 }
 
 enum DocumentType {
@@ -81,6 +82,7 @@ model Client {
   id         String        @id @default(cuid())
   name       String        // validable: sanitized string
   taxId      String        @unique // validable: fiscal identifier
+  nrc        String?       // Número de Registro de Contribuyente - requerido para crédito fiscal
   email      String?
   phone      String?
   address    String?
@@ -142,8 +144,12 @@ model Invoice {
   dte         DTE?
   issuedAt    DateTime?
   canceledAt  DateTime?
+<<<<<<< HEAD
   annulledAt  DateTime?
   annulReason String?
+=======
+  cancellationReason String? // Observación obligatoria al anular DTE
+>>>>>>> baaeab5 (feat: Implementación completa de mejoras y nuevas funcionalidades del sistema)
   paymentMethod String?      // proposed minimal field
   notes       String?
   subtotal    Decimal        @db.Decimal(12, 2) @default(0)

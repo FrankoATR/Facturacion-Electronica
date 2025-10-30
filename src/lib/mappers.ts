@@ -5,6 +5,7 @@ export function mapApiClient(c: any): Client {
     id: c.id,
     name: c.name,
     taxId: c.taxId,
+    nrc: c.nrc ?? undefined,
     email: c.email ?? '',
     phone: c.phone ?? '',
     address: c.address ?? '',
@@ -60,6 +61,8 @@ function mapTypeToUi(type: string): Invoice['type'] {
       return 'electronica';
     case 'TRADITIONAL':
       return 'tradicional';
+    case 'CREDIT_FISCAL':
+      return 'credito_fiscal';
     default:
       return (type as any) ?? 'electronica';
   }
@@ -100,8 +103,10 @@ export function mapApiInvoice(inv: any): Invoice {
   };
 }
 
-export function mapUiTypeToApi(type: Invoice['type']): 'ELECTRONIC' | 'TRADITIONAL' {
-  return type === 'electronica' || type === 'ELECTRONIC' ? 'ELECTRONIC' : 'TRADITIONAL';
+export function mapUiTypeToApi(type: Invoice['type']): 'ELECTRONIC' | 'TRADITIONAL' | 'CREDIT_FISCAL' {
+  if (type === 'electronica' || type === 'ELECTRONIC') return 'ELECTRONIC';
+  if (type === 'credito_fiscal' || type === 'CREDIT_FISCAL') return 'CREDIT_FISCAL';
+  return 'TRADITIONAL';
 }
 
 
